@@ -1,3 +1,4 @@
 MestaDB/MestaDB.komodoproject
 MestaDB/mestadb/local_settings.py
 *.dmg
+*.pyc
