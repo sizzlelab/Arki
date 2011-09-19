@@ -40,7 +40,7 @@ urlpatterns += patterns('',
 #    (r'^media/(?P<path>.*)$', 'django.views.static.serve',
 #     {'document_root': os.path.join(settings.ROOT_DIR, 'media')}),
     # Enable /static/*
-    (r'^static/(?P<path>.*)$', 'django.views.static.serve',
+#    (r'^static/(?P<path>.*)$', 'django.views.static.serve',
      #{'document_root': os.path.join(settings.ROOT_DIR, 'static').replace('\\','/')}),
-     {'document_root': settings.STATIC_DOC_ROOT}),
+#     {'document_root': settings.STATIC_DOC_ROOT}),
 )
