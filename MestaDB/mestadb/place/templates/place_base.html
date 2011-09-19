@@ -1,4 +1,5 @@
-{% extends "base.html" %}{% load i18n %}
+{% extends "base.html" %}{% load i18n %}{% load static %}
+{% get_static_prefix as STATIC_PREFIX %}
 {% block extrahead %}
 <style type="text/css">
 #demo2 {
@@ -23,9 +24,9 @@
 }
 </style>
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
-<script type="text/javascript" src="/static/js/jquery/jquery-1.6.2.js"></script>
-<script type="text/javascript" src="/static/place/js/api.js"></script>
-<script type="text/javascript" src="/static/place/js/place.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}js/jquery/jquery-1.6.2.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}place/js/api.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}place/js/place.js"></script>
 <script type="text/javascript">
 var map;
 var features = {};
@@ -200,6 +201,9 @@ $(function(){
 <div id="nukeall_link">
 <a href="javascript:void(0);" onclick="map_clear_features();">Nuke all</a> <span id="feature_cnt">0</span><br/>
 </div>
+
+
+
 
 <div id="mousecoord">0,0</div>
 {% comment %}
