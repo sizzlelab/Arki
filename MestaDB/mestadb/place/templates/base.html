@@ -1,0 +1,44 @@
+<!DOCTYPE HTML>{% load i18n %}
+<html>
+<head>
+<title>{% block title %}Aalto University of Art and Design/Arki{% endblock %}</title>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<style type="text/css">
+html { height:95% }
+body { height:95%; margin:0px; padding:0px; font-family:sans-serif; }
+#header {
+ width:auto;
+ background-color:#eee;
+ padding:5px;
+}
+#loginbox {
+ position: absolute;
+ top:5px;
+ right:5px;
+}
+header a {
+ color:#00f;
+ text-decoration:none;
+}
+header a:hover {
+ color:#000;
+ text-decoration:underline;
+}
+</style>
+{% block extrahead %}{% endblock %}
+</head>
+<body>
+<header><div id="header"><a href="/">{% trans 'Main page' %}</a></div>
+{% comment %}
+<div id="loginbox">
+{% if user.is_authenticated %}<a href="{% url django.contrib.auth.views.logout %}">{% trans 'Log out' %} {{ user.username }}</a>
+{% else %}<a href="{% url django.contrib.auth.views.login %}">{% trans 'Log in' %}</a>{% endif %}
+</div>
+{% endcomment %}
+{% block header %}{% endblock %}
+</header>
+{% block content %}{% endblock %}
+<footer>{% block footer %}{% endblock %}</footer>
+</body>
+</html>

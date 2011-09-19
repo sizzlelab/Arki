@@ -1,0 +1,14 @@
+
+.*\.pyc$
+data/*
+var/*
+tmp/*
+tracklinks/*
+Ruuhqa.komodoproject
+geonames/*
+local_settings.py
+sessionid.cookie
+
+\.DS_Store
+
+.*jquery/_.*
