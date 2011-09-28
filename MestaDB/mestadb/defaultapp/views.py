@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import datetime
+
 from django.conf import settings
 from django.template import RequestContext
 from django.http import HttpResponse
@@ -24,7 +26,7 @@ def _render_to_response(request, template, variables):
     variables['request'] = request
     host = request.META.get('HTTP_HOST', u'').lower()
     if host.startswith('test42'):
-        variables['test'] = u'HIEKKALAATIKKO'
+        variables['test'] = u'SANDBOX'
     if host.startswith('127.0.0.1') or host.startswith('mytestapp.org') :
         variables['test'] = u'LOCALHOST'
     return render_to_response(
