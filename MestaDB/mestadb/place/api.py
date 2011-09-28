@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 API for Track application.
+
+# TODO: add create Spot call
+
 """
 
 from django.conf import settings
@@ -13,9 +16,6 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 
 from django.contrib.gis.geos import Point
-
-#from track.models import Trackpoint
-#from track.models import Trackseg
 
 from place.models import Spot
 
