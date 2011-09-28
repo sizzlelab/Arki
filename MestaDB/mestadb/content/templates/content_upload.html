@@ -1,0 +1,13 @@
+{% extends "content_base.html" %}{% load i18n %}{% load static %}
+{% block customhead %}
+ <!-- no customhead -->
+{% endblock customhead %}
+
+{% block content %}
+<div id="content">
+<form id="uploadform" name="uploadform" action="" method="post" enctype="multipart/form-data">{% csrf_token %}
+{{ uploadform.as_p }}
+<input type="submit" name="upload_submit" value="{% trans 'Send' %}"/>
+</form>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}{% load i18n %}{% load static %}
+{% block extrahead %}
+{# Common head stuff for all Content pages #}
+<style type="text/css">
+#navi {
+ clear:both;
+}
+
+#navi ul {
+ margin:0 0 0 -35px;
+ list-style-type: none;
+ white-space: nowrap;
+ clear:both;
+}
+
+#navi ul li {
+ margin:5px 20px 5px 0;
+ float:left;
+}
+
+ul.messages {
+ list-style-type: none;
+ border:3px double #999;
+ background-color: #ccc;
+ padding:3px;
+ clear:both;
+}
+
+ul.messages li.success {
+ background-color: #3f3;
+}
+
+
+/*
+#searchform input {
+ font-size: 10pt;
+ font-family:inherit;
+ width:300px;
+}
+*/
+
+ul.errorlist {
+ list-style-type: none;
+ border:3px double #f00;
+ background-color: #ff0;
+ padding:3px;
+}
+
+div.clear {
+ clear:both;
+}
+div#content {
+ margin:10px;
+ clear:both;
+}
+
+div.preview {
+ border:#999 solid 1px;
+ margin:5px;
+ padding:3px;
+ text-align:center;
+ width:210px;
+ height:210px;
+ float:left;
+ font-size:10pt;
+}
+
+</style>
+<script type="text/javascript" src="{% get_static_prefix %}js/jquery/jquery-1.6.2.js"></script>
+<script type="text/javascript">
+</script>
+
+{% block customhead %}
+{# Custom head stuff for single Content pages #}
+{% endblock customhead %}
+
+{% endblock extrahead %}
+
+{% block header %}
+<div id="navi">
+<ul>
+ <li><a href="{% url index %}">{% trans 'Index' %}</a></li>
+ <li><a href="{% url upload %}">{% trans 'Upload' %}</a></li>
+ <li><a href="{% url html5upload %}">{% trans 'Upload many' %}</a></li>
+ <li><a href="{% url search %}">{% trans 'Advanced search' %}</a></li>
+ <li>
+ <form id="searchform" name="searchform" action="{% url index %}" method="get">
+ {{ searchform.q.label_tag }}: {{ searchform.q }}
+ <input id="id_submit" type="submit" value="{% trans 'Quick search' %}" />
+ </form>
+ </li>
+</ul>
+</div>
+{% if messages %}
+<ul class="messages" style="clear:both">
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+<div style="clear"/>
+{% endblock header %}
+
+{% block content %}
+<div id="content">
+ <h1>{% trans 'Latest files' %}</h1>
+{% for object in latest_objects %}
+<div class="preview">
+ <a href="{% url edit object.uid %}">{% if object.thumbnail %}<img src="{% url instance uid=object.uid width='200' height='200' ext='jpg' %}" alt="{{ object.originalfilename }}"/>{% else  %}{{ object.originalfilename }}{% endif  %}</a><br/>
+{{ object.mimetype }} ({{ object.filesize|filesizeformat }})<br/>
+Original time: {{ object.filetime|date:'Y-m-d H:i:s'|default:'--' }}<br/>
+Added: {{ object.added|date:'Y-m-d H:i:s'|default:'--' }}
+
+</div>
+{% endfor %}
+</div>
+
+{% endblock %}

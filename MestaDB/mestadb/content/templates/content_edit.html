@@ -1,0 +1,292 @@
+{% extends "content_base.html" %}{% load i18n %}{% load static %}
+{% block customhead %}
+<style type="text/css">
+
+#map_canvas {
+ width:100%;
+ height:400px;
+ float:left;
+}
+
+#editform label {
+ display:block;
+ clear:right;
+ font-size: 10pt;
+}
+
+#editform p {
+margin:5px;
+}
+
+#editform input, #editform textarea {
+ display:block;
+ clear:right;
+ font-size: 10pt;
+ font-family:inherit;
+ width:300px;
+}
+
+#editform textarea {
+ height:5ex;
+}
+
+textarea:focus, input:focus {
+  text-shadow:0 0;
+  border-color:#009fda!important;
+  border-style:solid;
+  outline:none;
+}
+
+#editform {
+ float:left;
+}
+
+div#preview_box {
+ float:left;
+}
+
+.ajax-loader {
+ display:none;
+}
+
+</style>
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+<!--
+<script type="text/javascript" src="{% get_static_prefix %}js/content.js"></script>
+-->
+<script type="text/javascript">
+var map;
+var features = {};
+
+function initialize() {
+  var latlng = new google.maps.LatLng(60.17, 24.94);
+  var myOptions = {
+    zoom: 8,
+    center: latlng,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  };
+  map = new google.maps.Map(document.getElementById("map_canvas"),
+                            myOptions);
+  google.maps.event.addListener(map, 'mousemove', mouseMove);
+  google.maps.event.addListener(map, 'click', setCoords);
+}
+
+// Testing mouse coordinates
+function mouseMove(event) {
+  var coords = event.latLng.lat() + "," + event.latLng.lng()
+  $("#mousecoord").html(coords);
+}
+
+// Testing mouse coordinates
+function setCoords(event) {
+  var coords = event.latLng.lat() + "," + event.latLng.lng()
+  $("#id_latlon").val(coords);
+  map_clear_features();
+  var marker = placeMarker(event.latLng, null, "foo")
+  features["content_pin"] = marker;
+}
+
+
+
+/**
+ * Draws all features found in data.geojson.features array
+**/
+function drawFeatures(data) {
+  if (validateGeoData(data) == false) {
+    alert("Invalid response from server: "  + data.status + "/" + data.message)
+  }
+  var geo = data.geojson;
+  var bounds;
+  for (var i in geo.features) {
+    var feature = geo.features[i];
+    var geometry = feature.geometry;
+    if (geometry.type == "LineString") { // Draw LineString
+      if (feature.bbox) {
+        var southWest = new google.maps.LatLng(feature.bbox[1], feature.bbox[0]);
+        var northEast = new google.maps.LatLng(feature.bbox[3], feature.bbox[2]);
+        bounds = new google.maps.LatLngBounds(southWest,northEast);
+        map.fitBounds(bounds);
+      }
+      var trackCoordinates = [];
+      for (i in geometry.coordinates) {
+        trackCoordinates.push(new google.maps.LatLng(geometry.coordinates[i][1], geometry.coordinates[i][0]));
+      }
+      var newTrack = new google.maps.Polyline({
+        path: trackCoordinates,
+        strokeColor: "#FF0000",
+        strokeOpacity: 1.0,
+        strokeWeight: 2
+      });
+      newTrack.setMap(map);
+      newTrack.id = feature.id;
+      var key = "track_" + feature.id;
+      map_delete_feature(key);
+      features[key] = newTrack;
+      features_size++;
+      /*
+      google.maps.event.addListener(newTrack, 'click', function(event) {
+        api_trackseg_points_get(newTrack.id, drawFeatures);
+      });
+      */
+      var p = feature.properties;
+      var duration = parseInt(p.duration/60) + ":" + p.duration%60 + " min ";
+      var text = p.starttime + " " + duration + p.length_km + " km " + p.title + " ";
+      $('<div>'+text+'</div>').prependTo('#feature_list');
+      // alert(feature.properties.title);
+    } else if (geometry.type == "Point") { // Draw Point
+      var latLng = new google.maps.LatLng(geometry.coordinates[1], geometry.coordinates[0]);
+      var title = feature.properties.title + " " + feature.id;
+      //var marker = placeMarker(latLng, images[feature.properties.name], title);
+      var marker = placeTrackpointMarker(latLng, images[feature.properties.name], title, feature.id);
+      var key = "trackpoint_" + feature.id;
+      map_delete_feature(key);
+      features[key] = marker;
+      features_size++;
+      // console.log(feature.properties.name)
+    } else {
+      console.log("Not supported %s", geometry.type)
+    }
+  }
+  $("#feature_cnt").html(features_size);
+}
+
+function placeTrackpointMarker(location, image, title, id) {
+  var marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: title,
+      icon: image
+  });
+  // google.maps.event.addListener(marker, 'click', function() {alert("moi");});
+
+  var contentString = "<a href='javascript:void(0)' onclick='api_trackpoint_status_set({id: "+ id + ", status: -1}, xxxxxxxxxxx);'>Disable</a> | ";
+  contentString += "<a href='javascript:void(0)' onclick='api_trackpoint_get("+ id + ", updateTrackpoint);'>Get details</a>";
+  var infowindow = new google.maps.InfoWindow({
+    content: contentString
+  });
+  google.maps.event.addListener(marker, 'click', function() {
+    infowindow.open(map, marker);
+  });
+  return marker;
+}
+
+
+
+function placeMarker(location, image, title) {
+  var marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: title,
+      icon: image
+  });
+  return marker;
+}
+
+function map_clear_features() {
+  for (i in features) {
+  // this could call map_delete_feature(i)
+    features[i].setMap(null);
+    features[i] = null;
+    delete features[i];
+    features_size = 0;
+  }
+}
+
+// This is the function which is called each time the Geo location position is updated
+function geo_success(position) {
+  var lat = position.coords.latitude.toFixed(5);
+  var lon = position.coords.longitude.toFixed(5);
+  userlocation = {
+    lat: lat,
+    lon: lon,
+    accuracy: Math.round(position.coords.accuracy, 1)
+  }
+  var center = lat + "," + lon;
+  $("#geolocation_location").html("Geolocation API: " + center);
+  // alert(center);
+}
+
+// This function is called each time navigator.geolocation.watchPosition() generates an error (i.e. cannot get a Geo location reading)
+function geo_error(error) {
+  alert("Geolocation error: " + error.code);
+  switch(error.code)
+  {
+    case error.TIMEOUT:
+      message("Geolocation timeout!");
+    break;
+  };
+}
+
+
+function get_pos() {
+  // Check that the Browser is capable
+  if(!!navigator.geolocation) {
+    // wpid=navigator.geolocation.watchPosition(geo_success, geo_error, {enableHighAccuracy:true, maximumAge:30000, timeout:27000});
+    wpid = navigator.geolocation.getCurrentPosition(geo_success, geo_error, {maximumAge: 60000, timeout:10000, enableHighAccuracy: true});
+  } else {
+    message("ERROR: Your Browser doesnt support the Geo Location API");
+  }
+}
+
+
+
+$(function(){
+  // Document is ready
+  $('#locate_button').click(function() {
+    $('.ajax-loader').show();
+    get_pos();
+  });
+  initialize();
+{% if object.point.coords.1 %}
+  var location = new google.maps.LatLng({{ object.point.coords.1 }}, {{ object.point.coords.0 }});
+  alert("{{ object.point.coords.1 }}");
+  map.setCenter(location);
+  var marker = placeMarker(location, null, "Location")
+  features["content_pin"] = marker;
+{% endif %}
+  /*
+  */
+});
+
+
+
+
+</script>
+{% endblock customhead %}
+
+{% block content %}
+<div id="content">
+
+<div id="preview_box">
+<img src="{% url instance uid=object.uid width='400' height='400' ext='jpg' %}" alt="" id="preview"/>
+<table>
+ <tr><td>File name:</td><td>{{ object.originalfilename }}</td></tr>
+ <tr><td>File type:</td><td>{{ object.mimetype }}</td></tr>
+ <tr><td>File size:</td><td>{{ object.filesize|filesizeformat }}</td></tr>
+ <tr><td>File time:</td><td>{{ object.filetime|date:'Y-m-d H:i:s'|default:'--' }}</td></tr>
+ <tr><td>File added:</td><td>{{ object.added|date:'Y-m-d H:i:s'|default:'--' }}</td></tr>
+</table>
+</div>
+
+<div id="editform_box">
+<form id="editform" name="editform" action="" method="post">{% csrf_token %}
+{{ editform.as_p }}
+<!--
+<p><label for="id_latlon">Coordinates (lat,lon): <span id="mousecoord">0,0</span></label>
+<input id="id_latlon" type="text" name="latlon" value="{{ object.point }}" />
+</p>
+-->
+<input id="id_submit" type="submit" name="submit" value="{% trans 'Save' %}" />
+</form>
+</div>
+<div>
+ <button id="locate_button">{% trans "Find current location" %}</button><br/>
+ <div id="geolocation_location"><img src="{% get_static_prefix %}images/ajax-loader.gif" class="ajax-loader" alt=""/></div>
+ <div id="geoip_location"></div>
+ <div id="track_location"></div>
+</div>
+
+<div id="map_canvas"></div>
+
+</div>
+{% endblock content %}

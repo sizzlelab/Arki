@@ -1,0 +1,182 @@
+{% extends "content_base.html" %}{% load i18n %}{% load static %}
+{% block customhead %}
+<style type="text/css">
+#map_canvas {
+ width:600px;
+ height:100%;
+ float:left;
+}
+</style>
+
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+<script type="text/javascript" src="{% get_static_prefix %}js/api.js"></script>
+<!--
+<script type="text/javascript" src="/static/content/js/content.js"></script>
+-->
+<script type="text/javascript">
+var map;
+
+function initialize() {
+  var latlng = new google.maps.LatLng(60.17, 24.94);
+  var myOptions = {
+    zoom: 8,
+    center: latlng,
+    mapTypeId: google.maps.MapTypeId.ROADMAP
+  };
+  map = new google.maps.Map(document.getElementById("map_canvas"),
+                            myOptions);
+  google.maps.event.addListener(map, 'mousemove', mouseMove);
+  google.maps.event.addListener(map, 'click', getSpots);
+  google.maps.event.addListener(map, 'bounds_changed', boundsChanged);
+}
+
+// Testing mouse coordinates
+function mouseMove(event) {
+  var coords = event.latLng.lat() + "," + event.latLng.lng()
+  $("#mousecoord").html(coords);
+}
+
+// Testing mouse coordinates
+function boundsChanged() {
+  var bounds = map.getBounds();// geevent.latLng.lat() + "," + event.latLng.lng()
+  var ne = bounds.getNorthEast();
+  var sw = bounds.getSouthWest();
+
+  // alert(bounds.toString());
+  $("#boundscoord").html(ne.lat());
+}
+
+function getSpots(event) {
+ // alert(event.latLng.lat())
+  var data_obj = {"lat":event.latLng.lat(), "lon":event.latLng.lng()}
+  alert(data_obj.lat + ", " + data_obj.lon);
+  // api_call('spot_nearby_get', data_obj, drawFeatures)
+  // api_spot_nearby_get(data_obj, drawFeatures)
+}
+
+function validateGeoData(data) {
+  if (data.geojson == undefined) { return false; }
+}
+
+/**
+ * Draws all features found in data.geojson.features array
+**/
+function drawFeatures(data) {
+  if (validateGeoData(data) == false) {
+    alert("Invalid response from server: "  + data.status + "/" + data.message)
+  }
+  var geo = data.geojson;
+  var bounds;
+  for (var i in geo.features) {
+    var feature = geo.features[i];
+    var geometry = feature.geometry;
+    if (geometry.type == "LineString") { // Draw LineString
+      if (feature.bbox) {
+        var southWest = new google.maps.LatLng(feature.bbox[1], feature.bbox[0]);
+        var northEast = new google.maps.LatLng(feature.bbox[3], feature.bbox[2]);
+        bounds = new google.maps.LatLngBounds(southWest,northEast);
+        map.fitBounds(bounds);
+      }
+      var trackCoordinates = [];
+      for (i in geometry.coordinates) {
+        trackCoordinates.push(new google.maps.LatLng(geometry.coordinates[i][1], geometry.coordinates[i][0]));
+      }
+      var newTrack = new google.maps.Polyline({
+        path: trackCoordinates,
+        strokeColor: "#FF0000",
+        strokeOpacity: 1.0,
+        strokeWeight: 2
+      });
+      newTrack.setMap(map);
+      newTrack.id = feature.id;
+      var key = "track_" + feature.id;
+      map_delete_feature(key);
+      features[key] = newTrack;
+      features_size++;
+      /*
+      google.maps.event.addListener(newTrack, 'click', function(event) {
+        api_trackseg_points_get(newTrack.id, drawFeatures);
+      });
+      */
+      var p = feature.properties;
+      var duration = parseInt(p.duration/60) + ":" + p.duration%60 + " min ";
+      var text = p.starttime + " " + duration + p.length_km + " km " + p.title + " ";
+      $('<div>'+text+'</div>').prependTo('#feature_list');
+      // alert(feature.properties.title);
+    } else if (geometry.type == "Point") { // Draw Point
+      var latLng = new google.maps.LatLng(geometry.coordinates[1], geometry.coordinates[0]);
+      var title = feature.properties.title + " " + feature.id;
+      //var marker = placeMarker(latLng, images[feature.properties.name], title);
+      var marker = placeTrackpointMarker(latLng, images[feature.properties.name], title, feature.id);
+      var key = "trackpoint_" + feature.id;
+      map_delete_feature(key);
+      features[key] = marker;
+      features_size++;
+      // console.log(feature.properties.name)
+    } else {
+      console.log("Not supported %s", geometry.type)
+    }
+  }
+  $("#feature_cnt").html(features_size);
+}
+
+function placeTrackpointMarker(location, image, title, id) {
+  var marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: title,
+      icon: image
+  });
+  // google.maps.event.addListener(marker, 'click', function() {alert("moi");});
+
+  var contentString = "<a href='javascript:void(0)' onclick='api_trackpoint_status_set({id: "+ id + ", status: -1}, xxxxxxxxxxx);'>Disable</a> | ";
+  contentString += "<a href='javascript:void(0)' onclick='api_trackpoint_get("+ id + ", updateTrackpoint);'>Get details</a>";
+  var infowindow = new google.maps.InfoWindow({
+    content: contentString
+  });
+  google.maps.event.addListener(marker, 'click', function() {
+    infowindow.open(map, marker);
+  });
+  return marker;
+}
+
+
+
+function placeMarker(location, image, title) {
+  var marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: title,
+      icon: image
+  });
+  return marker;
+}
+
+function map_clear_features() {
+  for (i in features) {
+  // this could call map_delete_feature(i)
+    features[i].setMap(null);
+    features[i] = null;
+    delete features[i];
+    features_size = 0;
+  }
+}
+
+$(function(){
+  // Document is ready
+  initialize();
+});
+
+</script>
+{% endblock customhead %}
+
+{% block content %}
+<div id="ddddsadas">
+</div>
+
+<div id="mousecoord">0,0</div>
+<div id="boundscoord">0,0</div>
+
+<div style="clear:both"></div>
+<div id="map_canvas"></div>
+{% endblock %}
