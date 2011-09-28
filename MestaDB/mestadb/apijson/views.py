@@ -15,6 +15,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.http import HttpResponse
+from django.core.context_processors import csrf
 
 # Django 1.3 CSRF stuff
 from django.views.decorators.csrf import csrf_exempt
@@ -36,14 +37,13 @@ POST_CALLS.update(apijson.authentication.POST_CALLS)
 apps = list(settings.CUSTOM_APPS)
 for app in apps:
     try:
-        api_module = __import__('%s.api' % app)
-        POST_CALLS.update(api_module.api.POST_CALLS)
-        logger.info(u'Successfully imported API from %s' % app)
+        if app != 'apijson':
+            api_module = __import__('%s.api' % app)
+            POST_CALLS.update(api_module.api.POST_CALLS)
+            logger.info(u'Successfully imported API from %s' % app)
     except ImportError, e:
-        #logger.exception(e)
         logger.warning("No api module in %s" % app)
     except AttributeError, e:
-        #logger.exception(e)
         logger.warning("No POST_CALLS in module %s.api" % app)
 
 LOCAL_POST_CALLS = {}
@@ -68,8 +68,12 @@ def handle_api_call(request):
         raise # because Django handles errors by itself
     return response
 
-# NOT IN USE
+def csrf_token(request):
+    """Return csrf_token"""
+    return HttpResponse(csrf(request)['csrf_token'])
+
 #@login_required
+@csrf_exempt
 def apitest(request):
     post = []
     get = []
@@ -83,11 +87,9 @@ def apitest(request):
         files.append(u"%s=%s" % (key, request.FILES[key]))
     for key in request.META:
         meta.append(u"%s=%s" % (key, request.META[key]))
-    text = ['\npost:\n' + "\n".join(post),
-        '\nget:\n' + "\n".join(get),
-        '\nfiles:\n' + "\n".join(files),
-        #'\nmeta:\n' + "\n".join(meta)
-        ]
+    text = u"""\nPOST:\n%s\nGET:\n%s\nFILES:\n%s\n""" % ("\n".join(post),
+                                                         "\n".join(get),
+                                                         "\n".join(files))
     response = HttpResponse(text)
     response['Content-Type'] = 'text/plain'
     return response

@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-:mod:`ocm.api.handler` module forwards request object to appropriate
+:mod:`mestadb.api.handler` module forwards request object to appropriate
 function and wraps response data into HttpResponse object, possibly
 in compressed form.
 """

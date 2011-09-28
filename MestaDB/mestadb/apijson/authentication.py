@@ -1,12 +1,13 @@
+# -*- coding: utf-8 -*-
 """
-:mod:`api.authentication` wraps Django's
+:mod:`mestadb.api.authentication` wraps Django's
 authenticate(), login() and logout() functions.
 
-For command line testing:
+For command line testing::
 
-curl -v -c sessionid.cookie -d operation=login -d username=existing_username -d password=real_password http://127.0.0.1:8000/api/
-curl -v -b sessionid.cookie -d operation=sessioninfo http://127.0.0.1:8000/api/
-curl -v -b sessionid.cookie -d operation=logout http://127.0.0.1:8000/api/
+    curl -v -c sessionid.cookie -d operation=login -d username=existing_username -d password=real_password http://127.0.0.1:8000/api/
+    curl -v -b sessionid.cookie -d operation=sessioninfo http://127.0.0.1:8000/api/
+    curl -v -b sessionid.cookie -d operation=logout http://127.0.0.1:8000/api/
 
 """
 
@@ -57,8 +58,6 @@ def logout(request):
     message = _("Logout OK")
     return True, data, message
 
-
-
 def sessioninfo(request):
     """Return some session data."""
     if request.user.is_authenticated():
@@ -76,12 +75,6 @@ def sessioninfo(request):
             }
     return True, data, message
 
-# TODO(arista): Move this to views.py or something
-from django.core.context_processors import csrf
-from django.http import HttpResponse
-def csrf_token(request):
-    """Return csrf_token"""
-    return HttpResponse(csrf(request)['csrf_token'])
 
 POST_CALLS = {
     "login" : login,
