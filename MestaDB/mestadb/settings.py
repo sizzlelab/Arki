@@ -28,6 +28,8 @@ ADMINS = ( # Override this in local_settings.py
 
 MANAGERS = ADMINS
 
+LOGIN_URL = '/login'
+
 DATABASES = { # Mandatory: override this in local_settings.py
     'default': {
         'ENGINE': 'django.db.backends.', # Add 'postgresql_psycopg2', 'postgresql', 'mysql', 'sqlite3' or 'oracle'.
@@ -145,25 +147,57 @@ INSTALLED_APPS = (
     #'django.contrib.humanize',
 )
 
-# A sample logging configuration. The only tangible logging
-# performed by this configuration is to send an email to
-# the site admins on every HTTP 500 error.
 # See http://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
+
+LOG_FILE = os.path.normpath(os.path.join(LOG_DIR, "django.log"))
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,
+    'disable_existing_loggers': True,
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+        'simple': {
+            'format': '[%(asctime)s] %(levelname)-8s"%(message)s"'
+        },
+    },
     'handlers': {
-        'mail_admins': {
-            'level': 'ERROR',
-            'class': 'django.utils.log.AdminEmailHandler'
-        }
+        'file': {
+            'level':'DEBUG',
+            'class':'logging.handlers.TimedRotatingFileHandler',
+            'filename': LOG_FILE,
+            'formatter': 'simple',
+            'delay': False,
+            'when': 'midnight',
+        },
+        #'null': {
+        #    'level':'DEBUG',
+        #    'class':'django.utils.log.NullHandler',
+        #},
+        #'console':{
+        #    'level':'DEBUG',
+        #    'class':'logging.StreamHandler',
+        #    'formatter': 'simple'
+        #},
+        #'mail_admins': {
+        #    'level': 'ERROR',
+        #    'class': 'django.utils.log.AdminEmailHandler',
+        #    'filters': ['special']
+        #}
     },
     'loggers': {
-        'django.request': {
-            'handlers': ['mail_admins'],
-            'level': 'ERROR',
+        'django': {
+            #'handlers':['null'],
+            'handlers':['file'],
             'propagate': True,
+#            'level':'INFO',
+        },
+        'django.request': {
+            'handlers': ['file'],
+            #'level': 'ERROR',
+            'level': 'DEBUG',
+            'propagate': False,
         },
     }
 }
