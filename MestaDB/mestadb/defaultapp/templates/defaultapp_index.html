@@ -1,0 +1,46 @@
+{% extends "defaultapp_base.html" %}{% load i18n %}
+{% block extrahead %}
+{% endblock %}
+
+{% block content %}
+
+<div id="loginbox">
+<h1>{% trans "Welcome to MestaDB" %}</h1>
+
+{% if messages %}
+<ul class="messages" id="loginmessages">
+{% for message in messages %}<li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>{% endfor %}
+</ul>
+<div class="divider"></div>
+{% endif %}
+
+{% if user.is_authenticated %}
+{% trans "Your are logged in." %}
+<a href="{% url defaultapp_logout %}">{% trans "Logout." %}</a>
+
+<h2>{% trans "You can access these applications:" %}</h2>
+{% if visible_apps %}
+{% for app in visible_apps %}
+<ul>
+    <li><a href="/{{ app }}/">{{ app|title }}</a></li>
+</ul>
+{% endfor %}
+{% else %}
+{% trans "You don't currently have any applications enabled." %}
+{% endif %}
+
+{% else %}
+<form action="{% url defaultapp_login %}" method="post" id="loginform">{% csrf_token %}
+<table>
+{{ loginform.as_table }}
+<tr><td colspan="2">
+<input type="submit" value="{% trans "Login" %}"/>
+{% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}"/>{% endif %}
+</td></tr>
+</table>
+</form>
+{% endif %}
+</div>
+{% if graph %}{% endif %}
+
+{% endblock %}

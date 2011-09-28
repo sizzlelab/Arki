@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>{% load i18n %}{% load static %}
+<html>
+<head>
+{% block head %}
+<title>MestaDB</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" href="{% get_static_prefix %}css/style.css" type="text/css" charset="utf-8">
+<script src="{% get_static_prefix %}js/jquery/jquery-1.6.2.min.js"></script>
+{% endblock %}
+{% block extrahead %}{% endblock %}
+</head>
+
+<body>
+
+<ul id="main-menu">
+<li><a href="{% url defaultapp_index %}">{% trans "Start page" %} »</a></li>
+{% if user.is_authenticated %}
+{% if user.is_staff %}<li><a href="/admin/">{% trans "Django Admin" %} »</a></li>{% endif %}
+{% if is_translator %}<li><a href="/rosetta/">{% trans "Rosetta" %} »</a></li>{% endif %}
+<li><a href="{% url defaultapp_logout %}">{% trans "Logout" %} {{ user.username }} »</a></li>
+{% else %}
+{% endif %}
+</ul>
+
+<ul id="language-menu">
+{% get_current_language as LANGUAGE_CODE %}
+{% for lang in LANGUAGES %}
+<li{% ifequal LANGUAGE_CODE lang.0 %} class="active"{% endifequal %}>
+<a href="javascript:void(0);"
+   onclick="$.post('/i18n/setlang/', { language: '{{ lang.0 }}', csrfmiddlewaretoken: '{{ csrf_token }}' }, function() {window.location.reload();} );"
+>{{ lang.0 }}</a></li>
+{% endfor %}
+</ul>
+
+{% block content %}{% endblock content %}
+</body>
+</html>
