@@ -11,9 +11,11 @@ PARENT_DIR = os.path.normpath(os.path.join(ROOT_DIR, ".."))
 # Directories for variable data (logs etc.)
 VAR_DIR = os.path.normpath(os.path.join(PARENT_DIR, "var"))
 LOG_DIR = os.path.normpath(os.path.join(VAR_DIR, "log"))
+# Directories for applications (static original data files etc.)
+DATA_DIR = os.path.normpath(os.path.join(PARENT_DIR, "data"))
 
 # Create directories
-for DIR in [VAR_DIR, LOG_DIR]:
+for DIR in [VAR_DIR, LOG_DIR, DATA_DIR]:
     if os.path.isdir(DIR) is False:
         os.mkdir(DIR)
 
@@ -166,6 +168,10 @@ LOGGING = {
     }
 }
 
+CUSTOM_APPS = (
+    'apijson',
+)
+
 ### Server/developer workstation specific settings ###
 try:
     from local_settings import *
@@ -181,10 +187,19 @@ except ImportError:
     import sys
     sys.exit(1)
 
-# Put your custom apps you want to use here
-# TODO: To local_settings!
-CUSTOM_APPS = (
-    'apijson',
-    'place',
-)
+# CUSTOM_APPS is likely overridden in local_settings.py
 INSTALLED_APPS += CUSTOM_APPS
+
+# APP_DATA_DIRS is defined in local_settings
+# Create application data directories
+for APP_DIR_KEY in APP_DATA_DIRS.keys():
+    DIR = os.path.normpath(os.path.join(DATA_DIR, APP_DATA_DIRS[APP_DIR_KEY]))
+    if os.path.isdir(DIR) is False:
+        os.mkdir(DIR)
+    APP_DATA_DIRS[APP_DIR_KEY] = DIR
+
+for APP_DIR_KEY in APP_VAR_DIRS.keys():
+    DIR = os.path.normpath(os.path.join(VAR_DIR, APP_VAR_DIRS[APP_DIR_KEY]))
+    if os.path.isdir(DIR) is False:
+        os.mkdir(DIR)
+    APP_VAR_DIRS[APP_DIR_KEY] = DIR

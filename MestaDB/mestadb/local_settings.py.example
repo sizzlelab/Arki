@@ -27,4 +27,19 @@ LANGUAGES = (
     ('fi', u'Suomi'),
 )
 
-ROOT_URLCONF = 'mestadb.urls'
+ROOT_URLCONF = 'mestadb.defaultapp.urls'
+
+CUSTOM_APPS = (
+    'defaultapp',
+    'apijson',
+)
+
+# These apps are shown on defaultapp's frontpage
+VISIBLE_APPS = (
+)
+
+APP_DATA_DIRS = {
+}
+
+APP_VAR_DIRS = {
+}
