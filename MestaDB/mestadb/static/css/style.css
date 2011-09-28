@@ -1,0 +1,153 @@
+/* Page wide settings */
+body {
+ font-family:sans-serif;
+ font-size:12pt;
+ padding:20px 0 0 0;
+}
+h1, h2, h3, h4 {
+ font-weight:bold;
+}
+
+h1 { font-size:18pt; }
+h2 { font-size:16pt; }
+h3 { font-size:14pt; }
+h4 { font-size:12pt; }
+
+p {
+ width:60ex;
+}
+
+/* Global language menu */
+ul#language-menu {
+ position:absolute;
+ top:0px;
+ right:0px;
+ margin:0;
+ padding:0;
+ background-color: #f6f6f6;
+}
+
+ul#language-menu li {
+  -moz-border-radius: 3px;
+  border-radius: 3px;
+  background-color: #dddddd;
+  float:left;
+  list-style-type: none;
+  margin:5px;
+  padding:5px;
+  width:3ex;
+  text-align:center;
+}
+ul#language-menu li a {
+  text-decoration:none;
+  color: #000;
+}
+
+ul#language-menu li.active {
+  background-color: #bbf;
+}
+
+ul#main-menu {
+ position:absolute;
+ top:0px;
+ left:0px;
+ margin:0;
+ padding:0;
+ background-color: #f6f6f6;
+}
+
+ul#main-menu li {
+   -moz-border-radius: 5px;
+  border-radius: 5px;
+  background-color: #fafaff;
+  float:left;
+  list-style-type: none;
+  margin:5px;
+  padding:5px;
+}
+
+ul#main-menu li a {
+  text-decoration:none;
+  color: #000;
+}
+
+
+/* Login */
+div#loginbox {
+ width:300px;
+ border:1px solid #eee;
+ background-color: #fafafa;
+ margin-top:100px;
+ padding:30px;
+ margin-left:auto;
+ margin-right:auto;
+ text-align:center;
+}
+
+div#loginbox table {
+ margin-left:auto;
+ margin-right:auto;
+ text-align:center;
+}
+
+/* Misc elements */
+div.divider {
+ clear:both;
+}
+
+.itemdone {
+  color:#ccc;
+  text-decoration:line-through;
+}
+
+.messages li.error {
+ color:red;
+}
+
+.messages li.warning {
+ color:#ff6;
+}
+
+.messages li.info {
+ color:#0f0;
+}
+
+/* Common django form elements */
+ul.errorlist li {
+ color:red;
+}
+
+/* Graph query form */
+table#graphquerytable label {
+ font-size: 10pt;
+}
+
+table#graphquerytable td {
+ vertical-align:top;
+}
+
+table#graphquerytable td#quickperiod ul, table#graphquerytable td#units ul {
+  float:inherit;
+  margin:0;
+  padding:0;
+}
+
+table#graphquerytable td#quickperiod li {
+   -moz-border-radius: 5px;
+  border-radius: 5px;
+  background-color: #eeeeff;
+  float:left;
+  list-style-type: none;
+  margin:5px;
+  padding:5px;
+}
+
+
+table#graphquerytable td#units li {
+   -moz-border-radius: 5px;
+  border-radius: 5px;
+  background-color: #eeeeff;
+  list-style-type: none;
+  margin:2px;
+  padding:2px;
+}
