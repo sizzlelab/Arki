@@ -2,3 +2,8 @@ MestaDB/MestaDB.komodoproject
 MestaDB/mestadb/local_settings.py
 *.dmg
 *.pyc
+.hg*
+var/
+data/
+doc/build/*
+cookies.txt
