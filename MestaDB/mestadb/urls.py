@@ -12,9 +12,6 @@ admin.autodiscover()
 urlpatterns = patterns('',
     (r'^api/', include('apijson.urls')),
 
-    # TODO: loop CUSTOM_APPS and put these dynamically to urlpatterns
-    (r'^place/', include('place.urls')),
-
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
 
@@ -28,22 +25,8 @@ urlpatterns = patterns('',
     (r'^i18n/', include('django.conf.urls.i18n')),
 )
 
-# OBSOLETE since Django 1.3
-## This puts all content in /appname/static/* available in static.serve
-#for APP in settings.CUSTOM_APPS:
-#    pattern = '^static/%s/' % APP + r'(?P<path>.*)$'
-#    path = os.path.join(settings.ROOT_DIR, APP, 'static').replace('\\','/')
-#    # print pattern, path
-#    urlpatterns += patterns('',
-#        (pattern, 'django.views.static.serve',
-#         {'document_root': path}),
-#    )
-
-#urlpatterns += patterns('',
-#    (r'^media/(?P<path>.*)$', 'django.views.static.serve',
-#     {'document_root': os.path.join(settings.ROOT_DIR, 'media')}),
-#    # Enable /static/*
-#    (r'^static/(?P<path>.*)$', 'django.views.static.serve',
-#     #{'document_root': os.path.join(settings.ROOT_DIR, 'static').replace('\\','/')}),
-#     {'document_root': settings.STATIC_DOC_ROOT}),
-#)
+# Load dynamically all CUSTOM_APPS.urls
+for APP in settings.CUSTOM_APPS:
+    if APP != 'defaultapp':
+        pat = ('^%s/' % APP, include('%s.urls' % APP))
+        urlpatterns += patterns('', pat)
