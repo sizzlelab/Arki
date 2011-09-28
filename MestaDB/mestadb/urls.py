@@ -11,6 +11,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     (r'^api/', include('apijson.urls')),
+
+    # TODO: loop CUSTOM_APPS and put these dynamically to urlpatterns
     (r'^place/', include('place.urls')),
 
     # Uncomment the next line to enable the admin:
