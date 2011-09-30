@@ -62,7 +62,9 @@ USE_I18N = True
 
 # If you set this to False, Django will not format dates, numbers and
 # calendars according to the current locale
-USE_L10N = True
+# Developers NOTE: if this is True, some Point.coords[1] values may
+# be e.g 25,01 instead of 25.01. This will break e.g. Google Maps javascript.
+USE_L10N = False
 
 # Absolute filesystem path to the directory that will hold user-uploaded files.
 # Example: "/home/media/media.lawrence.com/media/"

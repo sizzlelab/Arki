@@ -147,7 +147,7 @@ def edit(request, uid):
             if form.cleaned_data['latlon']:
                 lat, lon = [float(x) for x in form.cleaned_data['latlon'].split(',')]
                 new_object.point = Point(lon, lat)
-                print lat, lon, new_object.point
+                #print lat, lon, new_object.point
             else:
                 new_object.point = None
             msg = _(u'Form was saved successfully')

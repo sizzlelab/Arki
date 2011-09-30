@@ -239,7 +239,6 @@ $(function(){
   initialize();
 {% if object.point.coords.1 %}
   var location = new google.maps.LatLng({{ object.point.coords.1 }}, {{ object.point.coords.0 }});
-  alert("{{ object.point.coords.1 }}");
   map.setCenter(location);
   var marker = placeMarker(location, null, "Location")
   features["content_pin"] = marker;
