@@ -20,7 +20,7 @@ DATABASES = {
     },
 }
 
-LANGUAGE_CODE = 'en'
+LANGUAGE_CODE = 'en-us'
 
 LANGUAGES = (
     ('en', u'English'),
@@ -29,17 +29,24 @@ LANGUAGES = (
 
 ROOT_URLCONF = 'mestadb.defaultapp.urls'
 
+CONTENT_THUMBNAIL_PARAMETERS = (1000, 1000, 'JPEG', 90) # w, h, format, quality
+
 CUSTOM_APPS = (
     'defaultapp',
     'apijson',
+    'content',
+    'location',
 )
 
 # These apps are shown on defaultapp's frontpage
 VISIBLE_APPS = (
+    'content',
 )
 
 APP_DATA_DIRS = {
+    'CONTENT': 'content',
 }
 
 APP_VAR_DIRS = {
+    'PREVIEW': 'preview',
 }
