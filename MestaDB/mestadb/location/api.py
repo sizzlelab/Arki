@@ -109,10 +109,7 @@ def entity_get(request):
     try:
         request_data = json.loads(request.GET.get('data', ''))
     except ValueError:
-        request_data = dict(request.GET)
-        if 'guid_list' in request_data:
-            request_data['guid_list'] = request_data['guid_list'][0].split(',')
-            #print request_data['guid_list']
+        request_data = request.GET
     # Set up limits
     DEFAULT_RANGE = 1000
     DEFAULT_LIMIT = 50
@@ -125,7 +122,10 @@ def entity_get(request):
         return False, data, message
     # 1. filter by guid_list if it exists:
     if 'guid_list' in request_data:
-        entities = entities.filter(guid__in=request_data['guid_list'])
+        guid_list = request_data['guid_list']
+        if isinstance(guid_list, basestring):
+            guid_list = guid_list.split(',')
+        entities = entities.filter(guid__in=guid_list)
     # 2. filter by last_modified_after if it exists
     if 'last_modified_after' in request_data:
         entities = entities.filter(updated__gt=request_data['last_modified_after'])
