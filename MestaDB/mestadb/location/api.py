@@ -141,13 +141,15 @@ def entity_post(request):
             data, message = {}, u'No "lat" or "lon" parameters found.'
             return False, data, message
     ent = Entity(geography=point)
-    if request.POST.get('uid'):
-        ent.uid = request.POST.get('uid')
-        try:
-           ent.validate_unique()
-        except ValidationError, e:
-            data, message = {}, u'Entity with uid "%s" already exists.' % (ent.uid)
-            return False, data, message
+    guid = request.POST.get('guid')
+    if guid:
+        Entity.objects.filter(uid=guid).delete()
+        ent.uid = guid
+        #try:
+        #   ent.validate_unique()
+        #except ValidationError, e:
+        #    data, message = {}, u'Entity with uid "%s" already exists.' % (ent.uid)
+        #    return False, data, message
     ent.save()
     data, message = {'uid': ent.uid}, u'201 Created'
     return True, data, message
