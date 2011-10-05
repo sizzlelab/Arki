@@ -92,13 +92,13 @@ def _nearby_entities_find(entities, point, limit=50, range=10000):
     while res_cnt < limit:
         loops += 1
         # GeoDjango spatial query
-        res_cnt = Entity.objects.filter(geography__dwithin=(point, CURR_DIST)).count()
+        res_cnt = entities.filter(geography__dwithin=(point, CURR_DIST)).count()
         #print u'%8.1f m: found %d Spots' % (CURR_DIST, res_cnt)
         if CURR_DIST > range: break # Stop after range is reached
         if res_cnt < limit: #
             CURR_DIST = CURR_DIST * FACTOR
     t2 = time.time()
-    near_spots = Entity.objects.filter(geography__dwithin=(point, CURR_DIST)).distance(point).order_by('distance')[:limit]
+    near_spots = entities.filter(geography__dwithin=(point, CURR_DIST)).distance(point).order_by('distance')[:limit]
     t3 = time.time()
     logger.debug(u"Found %s Entities in %d loops in %.3f ms" % (res_cnt, loops, (t3-t1)))
     #print t3-t1
