@@ -13,13 +13,12 @@ API for Location application.
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
+from django.contrib.gis.geos import Point
+from django.http import HttpResponse
+from django.core.exceptions import ValidationError
 
 # Django 1.3 CSRF stuff
 from django.views.decorators.csrf import csrf_exempt
-
-from django.contrib.gis.geos import Point
-
-from django.http import HttpResponse
 
 
 from models import Entity
@@ -131,9 +130,9 @@ def entity_get(request):
     return True, data, message
 
 def entity_post(request):
-    data = request.POST.get('json', {})
-    if not data: # json did not exist
-        data['name'] = request.POST.get('name')
+    request_data = request.POST.get('json', {})
+    if not request_data: # json did not exist
+        request_data['name'] = request.POST.get('name')
         try:
             lat = float(request.POST.get('lat'))
             lon = float(request.POST.get('lon'))
@@ -141,9 +140,16 @@ def entity_post(request):
         except TypeError:
             data, message = {}, u'No "lat" or "lon" parameters found.'
             return False, data, message
-    e = Entity(geography=point)
-    e.save()
-    data, message = {'uid': e.uid}, u'201 Created'
+    ent = Entity(geography=point)
+    if request.POST.get('uid'):
+        ent.uid = request.POST.get('uid')
+        try:
+           ent.validate_unique()
+        except ValidationError, e:
+            data, message = {}, u'Entity with uid "%s" already exists.' % (ent.uid)
+            return False, data, message
+    ent.save()
+    data, message = {'uid': ent.uid}, u'201 Created'
     return True, data, message
 
 POST_CALLS = {
