@@ -14,7 +14,7 @@ from django.conf import settings
 from django.contrib.gis.db import models
 from django.contrib.auth.models import User
 
-def get_uid(length=12):
+def get_guid(length=12):
     """
     Generate and return a random string which can be considered unique.
     Default length is 12 characters from set [a-zA-Z0-9].
@@ -22,34 +22,25 @@ def get_uid(length=12):
     alphanum = string.letters + string.digits
     return ''.join([alphanum[random.randint(0,len(alphanum)-1)] for i in xrange(length)])
 
-
-#class Realm(models.Model):
-#    user = models.ForeignKey(User, db_index=True, blank=True, null=True, editable=True)
-#    public = models.BooleanField(default=False)
-#    name = models.CharField(max_length=50, editable=True)
-#    description = models.TextField(blank=True, null=True, editable=True)
-#    added = models.DateTimeField(auto_now_add=True, editable=False)
-#    updated = models.DateTimeField(auto_now=True, editable=False)
-#
-#    def __unicode__(self):
-#        return u"%s" % (self.name)
-#
-#    class Meta:
-#        pass
-
-
 class Entity(models.Model):
-    """Common fields for all Place app's models."""
-    uid = models.CharField(max_length=40, unique=True, db_index=True, default=get_uid, editable=False)
+    """
+    Entity is an object with geographical coordinates.
+    Fields:
+    * guid, globally unique id, usually a random string
+    * user, foreign key to an Auth.User object
+    * name, optional
+    * description, optional
+    * created and updated, auto-timestamps
+    * geography, GIS field for location (see PostGIS 1.5)
+    """
+    guid = models.CharField(max_length=40, default=get_guid, primary_key=True)
     user = models.ForeignKey(User, blank=True, null=True)
-#    realm = models.ForeignKey(Realm)
-    name = models.CharField(max_length=150, editable=True)
-    description = models.TextField(blank=True, editable=True)
-    added = models.DateTimeField(auto_now_add=True, editable=False)
+    name = models.CharField(max_length=150, blank=True, default='', editable=True)
+    description = models.TextField(blank=True, default='', editable=True)
+    created = models.DateTimeField(auto_now_add=True, editable=False)
     updated = models.DateTimeField(auto_now=True, editable=False)
     objects = models.GeoManager()
     geography = models.PointField(geography=True, editable=True)
 
     def __unicode__(self):
         return u"%s (%s)" % (self.name, str(self.geography)[:50])
-

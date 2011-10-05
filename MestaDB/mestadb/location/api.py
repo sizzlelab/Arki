@@ -16,7 +16,7 @@ from django.contrib.auth.models import User
 from django.contrib.gis.geos import Point
 from django.http import HttpResponse
 from django.core.exceptions import ValidationError
-
+from django.db.utils import DatabaseError
 # Django 1.3 CSRF stuff
 from django.views.decorators.csrf import csrf_exempt
 
@@ -52,7 +52,7 @@ def make_feature(obj, geo, properties = {}):
     """
     feature = {
         "type": "Feature",
-        "uid": unicode(obj.uid),
+        "guid": unicode(obj.guid),
         "properties": properties,
         "geometry": json.loads(geo.json)
     }
@@ -78,9 +78,9 @@ def make_featurecollection(features):
     }
     return featurecollection
 
-def _nearby_spots_find(point, max_spots=50, max_dist=10000):
+def _nearby_entities_find(entities, point, limit=50, range=10000):
     """
-    Loop until at least max_spots Spots are found.
+    Loop until at least limit Spots are found.
     """
     t1 = time.time()
     START = 10 # start from START meters
@@ -88,70 +88,110 @@ def _nearby_spots_find(point, max_spots=50, max_dist=10000):
     FACTOR = 1.5 # how much to increase
     res_cnt = 0 # amount of found spots
     loops = 0
-    # Loop until max_spots is reached
-    while res_cnt < max_spots:
+    # Loop until limit is reached
+    while res_cnt < limit:
         loops += 1
         # GeoDjango spatial query
         res_cnt = Entity.objects.filter(geography__dwithin=(point, CURR_DIST)).count()
         #print u'%8.1f m: found %d Spots' % (CURR_DIST, res_cnt)
-        if CURR_DIST > max_dist: break # Stop after max_dist is reached
-        if res_cnt < max_spots: #
+        if CURR_DIST > range: break # Stop after range is reached
+        if res_cnt < limit: #
             CURR_DIST = CURR_DIST * FACTOR
     t2 = time.time()
-    near_spots = Entity.objects.filter(geography__dwithin=(point, CURR_DIST)).distance(point).order_by('distance')[:max_spots]
+    near_spots = Entity.objects.filter(geography__dwithin=(point, CURR_DIST)).distance(point).order_by('distance')[:limit]
     t3 = time.time()
-    logger.debug(u"Found %s spots in %d loops in %.3f ms" % (res_cnt, loops, (t3-t1)))
+    logger.debug(u"Found %s Entities in %d loops in %.3f ms" % (res_cnt, loops, (t3-t1)))
     #print t3-t1
     return near_spots
 
-def _entity_nearby_get(point, limit, range):
-    near_spots = _nearby_spots_find(point, max_spots=limit, max_dist=range)
-    #print u'%8.1f m: found %d Spots' % (CURR_DIST, res_cnt)
-    features = []
-    for p in near_spots:
-        features.append(make_feature(p, p.geography, {'name': p.name or u'%s %.5f %.5f' % (p.uid, p.geography.coords[1], p.geography.coords[0])}))
-    data = { 'geojson': make_featurecollection(features) }
-    return data
-
 def entity_get(request):
+    entities = Entity.objects.all()
     try:
-        lat = float(request.POST.get('lat'))
-        lon = float(request.POST.get('lon'))
-        point = Point(lon, lat)
-        DEFAULT_RANGE = 1000
-        DEFAULT_LIMIT = 50
-        range = int(request.POST.get('range', DEFAULT_RANGE))
-        limit = int(request.POST.get('limit', DEFAULT_LIMIT))
-    except TypeError:
-        data, message = {}, u'No "lat" or "lon" parameters found.'
+        request_data = json.loads(request.GET.get('data', ''))
+    except ValueError:
+        request_data = dict(request.GET)
+        if 'guid_list' in request_data:
+            request_data['guid_list'] = request_data['guid_list'][0].split(',')
+            #print request_data['guid_list']
+    # Set up limits
+    DEFAULT_RANGE = 1000
+    DEFAULT_LIMIT = 50
+    # FIXME: try/except ValueError and return error
+    try:
+        range = int(request_data.get('range', DEFAULT_RANGE))
+        limit = int(request_data.get('limit', DEFAULT_LIMIT))
+    except ValueError:
+        data, message = {}, u'"range" and "limit" should be numeric.'
         return False, data, message
-    data = _entity_nearby_get(point, limit, range)
+    # 1. filter by guid_list if it exists:
+    if 'guid_list' in request_data:
+        entities = entities.filter(guid__in=request_data['guid_list'])
+    # 2. filter by last_modified_after if it exists
+    if 'last_modified_after' in request_data:
+        entities = entities.filter(updated__gt=request_data['last_modified_after'])
+    # 3. Filter by coordinates and range, if lat & lon exist
+    try:
+        lat = float(request_data.get('lat'))
+        lon = float(request_data.get('lon'))
+        point = Point(lon, lat)
+    except ValueError:
+        data, message = {}, u'"lat" and "lon" should be numeric.'
+        return False, data, message
+    except TypeError:
+        point = None # it is okay there wasn't no lat and lon
+    if point:
+        try:
+            entities = _nearby_entities_find(entities, point, limit, range)
+        except DatabaseError, message:
+            return False, {}, str(message).strip() + " (lat=%.5f,lon=%.5f)" % (lat, lon)
+    else:
+        entities = entities.order_by('-updated')[:limit]
+    features = []
+    for obj in entities:
+        features.append(make_feature(obj, obj.geography, {
+            'name': obj.name or u'%s %.5f %.5f' % (obj.guid, obj.geography.coords[1], obj.geography.coords[0]),
+            'updated': obj.updated.strftime('%Y%m%dT%H%M%S'),
+        }))
+    data = { 'geojson': make_featurecollection(features) }
     message = u'Found %d entities' % len(data['geojson']['features'])
     return True, data, message
 
 def entity_post(request):
-    request_data = request.POST.get('json', {})
-    if not request_data: # json did not exist
-        request_data['name'] = request.POST.get('name')
+    """
+    Create a new Entity with optional predefined GUID.
+    If Entity with given GUID already exists, it will be replaced with new data.
+    Parameters can be separate parameters in request.POST or
+    JSON encoded in a singe "data" parameter.
+    Currently successful creation returns always 201 Created.
+    """
+    try:
+        request_data = json.loads(request.POST.get('data', ''))
+    except ValueError:
+        request_data = {}
+    if not request_data: # json data did not exist
+        request_data['name'] = request.POST.get('name', '')
         try:
             lat = float(request.POST.get('lat'))
             lon = float(request.POST.get('lon'))
-            point = Point(lon, lat)
+            request_data['geography'] = Point(lon, lat)
         except TypeError:
             data, message = {}, u'No "lat" or "lon" parameters found.'
             return False, data, message
-    ent = Entity(geography=point)
     guid = request.POST.get('guid')
     if guid:
-        Entity.objects.filter(uid=guid).delete()
-        ent.uid = guid
+        request_data['guid'] = request.POST.get('guid')
+    try: # to get existing Entity from the database
+        ent = Entity.objects.get(guid=guid)
+        ent.geography = request_data['geography'] # update location
+    except Entity.DoesNotExist: # if it fails, create a new one
+        ent = Entity(**request_data)
         #try:
         #   ent.validate_unique()
         #except ValidationError, e:
         #    data, message = {}, u'Entity with uid "%s" already exists.' % (ent.uid)
         #    return False, data, message
     ent.save()
-    data, message = {'uid': ent.uid}, u'201 Created'
+    data, message = {'guid': ent.guid}, u'201 Created'
     return True, data, message
 
 POST_CALLS = {
