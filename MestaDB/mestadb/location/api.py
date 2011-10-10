@@ -183,6 +183,8 @@ def entity_post(request):
     try: # to get existing Entity from the database
         ent = Entity.objects.get(guid=guid)
         ent.geography = request_data['geography'] # update location
+        if 'name' in request_data and request_data['name']:
+            ent.name = request_data['name']
     except Entity.DoesNotExist: # if it fails, create a new one
         ent = Entity(**request_data)
         #try:
