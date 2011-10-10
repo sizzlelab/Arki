@@ -33,7 +33,7 @@ class Entity(models.Model):
     * created and updated, auto-timestamps
     * geography, GIS field for location (see PostGIS 1.5)
     """
-    guid = models.CharField(max_length=40, default=get_guid, primary_key=True)
+    guid = models.CharField(max_length=40, default=get_guid, unique=True, db_index=True)
     user = models.ForeignKey(User, blank=True, null=True)
     name = models.CharField(max_length=150, blank=True, default='', editable=True)
     description = models.TextField(blank=True, default='', editable=True)
