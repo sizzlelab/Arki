@@ -12,8 +12,8 @@ from location.apitastypie import UserResource
 
 from tastypie.api import Api
 
-#v1_api = Api(api_name='v1')
-v1_api = Api()
+v1_api = Api(api_name='v1')
+#v1_api = Api()
 v1_api.register(EntityResource())
 v1_api.register(UserResource())
 

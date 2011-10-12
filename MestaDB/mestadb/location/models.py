@@ -31,7 +31,8 @@ class Entity(models.Model):
     * name, optional
     * description, optional
     * created and updated, auto-timestamps
-    * geography, GIS field for location (see PostGIS 1.5)
+    * geography, GIS field for location (see PostGIS 1.5) or
+      http://workshops.opengeo.org/postgis-intro/geography.html
     """
     guid = models.CharField(max_length=40, default=get_guid, unique=True, db_index=True)
     user = models.ForeignKey(User, blank=True, null=True)
