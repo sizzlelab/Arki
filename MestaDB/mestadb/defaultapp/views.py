@@ -13,6 +13,8 @@ from django.contrib import auth
 from django.contrib import messages
 from django.core.urlresolvers import reverse
 
+from django.views.decorators.csrf import csrf_exempt
+
 from forms import LoginForm
 from models import LoginAttempt
 
@@ -33,6 +35,7 @@ def _render_to_response(request, template, variables):
         template, variables, context_instance=RequestContext(request),
     )
 
+@csrf_exempt
 def index(request):
     """Render front page and handle login."""
     if request.method == 'POST': # If the login form has been submitted...
