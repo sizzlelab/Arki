@@ -15,3 +15,17 @@ urlpatterns = patterns('',
     (r'^original/(\w+)$', views.original),
     (r'^metadata/(\w+)$', views.metadata),
 )
+
+
+from content.apitastypie import ContentResource
+from content.apitastypie import UserResource
+from tastypie.api import Api
+
+v1_api = Api(api_name='v1')
+v1_api.register(ContentResource())
+v1_api.register(UserResource())
+
+urlpatterns += patterns('',
+    url(r'^api/v1/content/upload/?$', views.api_upload, name='api_upload'),
+    (r'^api/', include(v1_api.urls)),
+)

@@ -119,8 +119,11 @@ class Content(models.Model):
     linktype = models.CharField(max_length=500, blank=True, null=True)
     "Information of the type of child-parent relation."
     #point = models.CharField(max_length=500, blank=True, null=True, editable=False)
-    point = models.PointField(blank=True, null=True, editable=False)
+    point = models.PointField(geography=True, blank=True, null=True, editable=False)
     objects = models.GeoManager()
+
+    def latlon(self):
+        return self.point.coords if self.point else None
 
     def set_file(self, originalfilename, filecontent, mimetype=None):
         """

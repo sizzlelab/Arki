@@ -90,6 +90,48 @@ def upload(request):
                                   'uploadform' : form,
                                })
 
+# TODO: move this elsewhere, e.g. to apitastypie.py
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+@login_required
+def api_upload(request):
+    """
+    Renders the upload form page.
+    """
+    if request.method == 'POST': # If the form has been submitted...
+        form = UploadForm(request.POST, request.FILES) # A form bound to the POST data
+        if form.is_valid(): # All validation rules pass
+            for filefield, tmpname in handle_uploaded_file(request):
+                SUPPORTED_FIELDS = ['title', 'caption', 'author']
+                kwargs = {}
+                for field in SUPPORTED_FIELDS:
+                    kwargs[field] = request.POST.get(field)
+                try:
+                    kwargs['point'] = Point(float(request.POST.get('lon')), float(request.POST.get('lat')))
+                except:
+                    raise
+                    pass
+                print kwargs
+                c = Content(**kwargs)
+                originalname = str(request.FILES["file"])
+                c.user = request.user # Only authenticated users can use this view
+                c.set_file(originalname, tmpname) # Save uploaded file to filesystem
+                c.get_type_instance() # Create thumbnail if it is supported
+                c.save()
+                break # We save only the first file
+            response = HttpResponse()
+            response.status_code = 201
+            # FIXME: use reverse()
+            response['Location'] = '/content/api/v1/content/%s/' % c.uid
+            return response
+            #return HttpResponseRedirect(reverse('edit', args=[c.uid]))
+    else:
+        raise Http404
+
+
+
+
 @login_required
 def html5upload(request):
     """
