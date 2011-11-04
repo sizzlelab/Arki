@@ -5,8 +5,9 @@ import os
 import httplib
 import random
 import string
-
+import datetime
 import hmac
+import base64
 import hashlib
 
 
@@ -84,6 +85,7 @@ class HttpPostMultipart:
     def __init__(self, username, secret):
         self.username = username
         self.secret = secret
+        self.request_method = 'POST'
 
     def random_boundary(self, length=30):
         alphanum = string.letters + string.digits
@@ -133,6 +135,19 @@ class HttpPostMultipart:
         content_type = 'multipart/form-data; boundary=%s' % boundary
         return handler.length, content_type
 
+    def add_authorization_header(self, headers, content_type, request_uri, md5_digest_maker):
+        #hmac_header = 'username=%s;sha1=%s;md5=%s' % (self.username, sha1_digest, md5_digest)
+        message = "\n".join([self.request_method,
+                             md5_digest_maker.digest(),
+                             content_type,
+                             headers['Date'],
+                             request_uri])
+        #print message
+        hash = hmac.new(self.secret, message, hashlib.sha1)
+        hmac_header = '%s:%s' % (self.username, base64.b64encode(hash.digest()))
+        headers.update({
+            'Authorization': hmac_header,
+        })
 
     def post_multipart(self, host, selector, fields, files, headers={}):
         """
@@ -144,47 +159,53 @@ class HttpPostMultipart:
         http://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
         """
         boundary = '----------' + self.random_boundary() + '_$'
-        sha1_digest_maker = hmac.new(self.secret, '', hashlib.sha1)
-        md5_digest_maker = hmac.new(self.secret, '', hashlib.md5)
-        content_length, content_type = self.encode_multipart_formdata(boundary, fields, files, handler=ContentLengthHandler([sha1_digest_maker, md5_digest_maker]))
-        sha1_digest = sha1_digest_maker.hexdigest()
-        md5_digest = md5_digest_maker.hexdigest()
-        #print sha1_digest, md5_digest
-        hmac_header = 'username=%s;sha1=%s;md5=%s' % (self.username, sha1_digest, md5_digest)
+        # Uncomment to DEBUG, this should write multipart data to a file even if there is no server available
+        #filehandler = FileHandler('/tmp/httppost.txt', content_length)
+        #self.encode_multipart_formdata(boundary, fields, files, handler=filehandler)
+
+        # Calculate md5 hash of the POST body
+        md5_digest_maker = hashlib.md5()
+        content_length, content_type = self.encode_multipart_formdata(boundary, fields, files, handler=ContentLengthHandler([md5_digest_maker]))
+
         # Delete inappropriate headers
         for header in headers.keys():
             if header.lower() in ['content-type', 'content-length']:
-                del headers['header']
+                del headers[header]
         # Add mandatory headers
+        tstamp = datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S GMT')
         headers.update({
             'Content-Type': content_type,
             'Content-Length': content_length,
-            'X-4Dnest-hmac': hmac_header,
+            'Date': tstamp,
         })
+        self.add_authorization_header(headers, content_type, selector, md5_digest_maker)
+        print "REQUEST:"
+        for key, val in headers.items():
+            print "%s: %s" % (key, val)
+
         # Create connection object
         h = httplib.HTTPConnection(host)
         # Construct request headers
-        h.putrequest('POST', selector)
+        h.putrequest(self.request_method, selector)
         for key, val in headers.items():
             h.putheader(key, val)
         h.endheaders()
         # Put POST's payload in the place
         httphandler = HttpHandler(h, content_length)
         content_length, content_type =  self.encode_multipart_formdata(boundary, fields, files, handler=httphandler)
-        # Uncomment to DEBUG:
-        #filehandler = FileHandler('/tmp/httppost.txt', content_length)
-        #self.encode_multipart_formdata(boundary, fields, files, handler=filehandler)
         response = h.getresponse()
         return response
 
+# TODO: add command line options: debug, verbose
 if __name__ == '__main__':
     host = '127.0.0.1:8000'
     selector = '/fourdnest/api/v1/egg/upload/'
-    headers = {'Cookie': 'sessionid=7c77f05283b41d74850dee610ddca993'}
+    #headers = {'Cookie': 'sessionid=7c77f05283b41d74850dee610ddca993'}
+    headers = {}
     fields = {'title': 'Cool title', 'caption': 'Nice file', 'author': 'Python user'}
     files = []
-    #files.append(('file1', 'in-memory-file1.txt', u'Hahhaahhaa, naurattaa\nfuubar\nMites nää ääkköset ja €uro?')) # this should fail
-    #files.append(('file1', 'in-memory-file1.txt', u'Hahhaahhaa, naurattaa\nfuubar\nMites nää ääkköset ja €uro?'.encode('utf8')))
+    #files.append(('file1', 'in-memory-file1.txt', u'Foobarbaz\nfuubar\nMites nää ääkköset ja €uro?')) # this should fail
+    #files.append(('file1', 'in-memory-file1.txt', u'Hola carabola\nfuubar\nMites nää ääkköset ja €uro?'.encode('utf8')))
     #files.append(('file2', 'in-memory-file2.txt', 'x'*80+'\n'))
     #if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
     #    f = open(sys.argv[1], 'rb')
@@ -192,7 +213,10 @@ if __name__ == '__main__':
     #print os.path.basename(sys.argv[1])
     if len(sys.argv) > 1:
         files.append(('file', os.path.basename(sys.argv[1]), sys.argv[1]))
-    hpm = HttpPostMultipart('test42', 'random secret string is here')
+    hpm = HttpPostMultipart('test42', 'secret')
     response = hpm.post_multipart(host, selector, fields, files, headers)
     print response.read()
-    print "STATUS", response.status, response.getheaders()
+    print "RESPONSE:"
+    print "STATUS:", response.status
+    for (key, val) in response.getheaders():
+        print "%s: %s" % (key, val)
