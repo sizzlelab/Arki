@@ -14,3 +14,6 @@ rmdir Django-1.3.1
 # Start dev server
 python manage.py runserver
 
+echo Next time you can start dev server by issuing command below:
+echo python manage.py runserver
+
