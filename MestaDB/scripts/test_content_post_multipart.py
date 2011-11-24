@@ -69,11 +69,12 @@ class HttpHandler(Handler):
 class FileHandler(Handler):
     """ Write the data directly to the file for debugging purposes."""
 
-    def __init__(self, fname, total_length):
+    #def __init__(self, fname, total_length):
+    def __init__(self, fname):
         Handler.__init__(self)
         self.f = open(fname, 'wb')
         self.done = 0
-        self.total_length = total_length
+        #self.total_length = total_length
 
     def write(self, data):
         self.set_data(data)
@@ -97,11 +98,16 @@ class HttpPostMultipart:
 
     def encode_multipart_formdata(self, boundary, fields, files, handler):
         lines = []
-        for (key, value) in fields.iteritems():
+        hashes = []
+        keys = fields.keys()
+        keys.sort() # Put keys to alphabethical order for easier fourdnest_md5 calculation
+        for key in keys:
+            value = fields[key]
             lines.append('--' + boundary)
             lines.append('Content-Disposition: form-data; name="%s"' % key)
             lines.append('')
             lines.append(value)
+            hashes.append(hashlib.md5(value).digest())
             handler.write(lines)
         for (key, filename, value) in files:
             lines.append('--' + boundary)
@@ -109,44 +115,61 @@ class HttpPostMultipart:
             lines.append('Content-Type: %s' % self.get_content_type(filename))
             lines.append('')
             handler.write(lines)
+            digest_maker = hashlib.md5()
             # If value is open file handle, read the file
             if isinstance(value, file): # FIXME: check that file is really is open!
                 value.seek(0)
                 buf = value.read(BUFFER_SIZE) # read in BUFFER_SIZE blocks
                 while len(buf) > 0:
                     handler.write(buf)
+                    digest_maker.update(buf)
                     buf = value.read(BUFFER_SIZE)
             elif isinstance(value, str):
                 if os.path.isfile(value): # If value is a path to an existing file
                     f = open(value, 'rb') # FIXME: THIS MAY FAIL!
-                    buf = f.read(BUFFER_SIZE) # read 4k blocks
+                    buf = f.read(BUFFER_SIZE) # read BUFFER_SIZE blocks
+                    #digest_maker.update(buf)
                     while len(buf) > 0:
                         handler.write(buf)
+                        digest_maker.update(buf)
                         buf = f.read(BUFFER_SIZE)
                     f.close()
                 else: # If value is plain string use it as-is
                     lines.append(value)
+                    digest_maker.update(value)
                     handler.write(lines)
             elif isinstance(value, str) is False:
                 raise ValueError("In-memory-file must be str, file obj or filename, not %s!" % (type(value)))
                 #sys.exit(1)
+            # Add extra newline to the end of file field
+            handler.write(CRLF)
+            #digest_maker.update(CRLF)
+
+        hashes.append(digest_maker.digest())
+        #print hashes
+        #print ''.join(hashes)
+        fourdnest_multipart_md5 = hashlib.md5(''.join(hashes)).digest()
         lines.append('--' + boundary + '--')
         handler.write(lines)
         content_type = 'multipart/form-data; boundary=%s' % boundary
-        return handler.length, content_type
+        return handler.length, content_type, fourdnest_multipart_md5
 
-    def add_authorization_header(self, headers, content_type, request_uri, md5_digest_maker):
+    def add_authorization_header(self, headers, content_type, request_uri, content_md5, fourdnest_multipart_md5):
         #hmac_header = 'username=%s;sha1=%s;md5=%s' % (self.username, sha1_digest, md5_digest)
+        fourdnest_multipart_md5_b64 = base64.b64encode(fourdnest_multipart_md5)
         message = "\n".join([self.request_method,
-                             md5_digest_maker.digest(),
+                             content_md5,
+                             fourdnest_multipart_md5_b64,
                              content_type,
                              headers['Date'],
                              request_uri])
         #print message
         hash = hmac.new(self.secret, message, hashlib.sha1)
-        hmac_header = '%s:%s' % (self.username, base64.b64encode(hash.digest()))
+        encoded = base64.b64encode(hash.digest())
+        hmac_header = '%s:%s' % (self.username, encoded)
         headers.update({
             'Authorization': hmac_header,
+            'X-4Dnest-MultipartMD5': fourdnest_multipart_md5_b64,
         })
 
     def post_multipart(self, host, selector, fields, files, headers={}):
@@ -159,13 +182,14 @@ class HttpPostMultipart:
         http://www.w3.org/Protocols/rfc1341/7_2_Multipart.html
         """
         boundary = '----------' + self.random_boundary() + '_$'
+
         # Uncomment to DEBUG, this should write multipart data to a file even if there is no server available
-        #filehandler = FileHandler('/tmp/httppost.txt', content_length)
-        #self.encode_multipart_formdata(boundary, fields, files, handler=filehandler)
+        filehandler = FileHandler('/tmp/httppost.txt')
+        self.encode_multipart_formdata(boundary, fields, files, handler=filehandler)
 
         # Calculate md5 hash of the POST body
         md5_digest_maker = hashlib.md5()
-        content_length, content_type = self.encode_multipart_formdata(boundary, fields, files, handler=ContentLengthHandler([md5_digest_maker]))
+        content_length, content_type, fourdnest_multipart_md5 = self.encode_multipart_formdata(boundary, fields, files, handler=ContentLengthHandler([md5_digest_maker]))
 
         # Delete inappropriate headers
         for header in headers.keys():
@@ -178,7 +202,9 @@ class HttpPostMultipart:
             'Content-Length': content_length,
             'Date': tstamp,
         })
-        self.add_authorization_header(headers, content_type, selector, md5_digest_maker)
+        #self.add_authorization_header(headers, content_type, selector, md5_digest_maker.digest(), fourdnest_multipart_md5)
+        # Use fourdnest_multipart_md5, content_md5 is empty string
+        self.add_authorization_header(headers, content_type, selector, '', fourdnest_multipart_md5)
         print "REQUEST:"
         for key, val in headers.items():
             print "%s: %s" % (key, val)
@@ -192,7 +218,7 @@ class HttpPostMultipart:
         h.endheaders()
         # Put POST's payload in the place
         httphandler = HttpHandler(h, content_length)
-        content_length, content_type =  self.encode_multipart_formdata(boundary, fields, files, handler=httphandler)
+        content_length, content_type, fourdnest_multipart_md5 =  self.encode_multipart_formdata(boundary, fields, files, handler=httphandler)
         response = h.getresponse()
         return response
 
@@ -213,6 +239,8 @@ if __name__ == '__main__':
     #print os.path.basename(sys.argv[1])
     if len(sys.argv) > 1:
         files.append(('file', os.path.basename(sys.argv[1]), sys.argv[1]))
+    print "FIELDS:", fields
+    print "FILES:", files
     hpm = HttpPostMultipart('test42', 'secret')
     response = hpm.post_multipart(host, selector, fields, files, headers)
     print response.read()
