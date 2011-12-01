@@ -32,7 +32,7 @@ def handle_uploaded_file(request):
             for chunk in filedata.chunks():
                 destination.write(chunk)
                 digest_maker.update(chunk)
-        yield inputfile, destination, digest_maker.digest()
+        yield inputfile, destination, digest_maker.hexdigest()
 
 def validate_authorization(request):
     """
@@ -43,7 +43,7 @@ def validate_authorization(request):
     raw_post_data = request.read()
     m = hashlib.md5()
     m.update(raw_post_data)# read() Should exist in PUT request too
-    CONTENT_MD5 = m.digest()
+    CONTENT_MD5 = m.hexdigest()
     CONTENT_TYPE = request.META.get('CONTENT_TYPE')
     DATE = request.META.get('HTTP_DATE')
     message = "\n".join([REQUEST_METHOD,
@@ -53,7 +53,7 @@ def validate_authorization(request):
     #print message
     key = 'secret'
     hash = hmac.new(key, message, hashlib.sha1)
-    encoded = base64.b64encode( hash.digest() )
+    encoded = base64.b64encode( hash.hexdigest() )
     if 'HTTP_AUTHORIZATION' in request.META:
         username, signature = request.META['HTTP_AUTHORIZATION'].split(':')
         #print request.META['HTTP_AUTHORIZATION'], encoded
@@ -82,9 +82,9 @@ def validate_4dnest_authorization(request, file_md5_sums):
         for key in keys:
             value = request.POST[key]
             #print "GOT:", key, value
-            hashes.append(hashlib.md5(value).digest())
+            hashes.append(hashlib.md5(value).hexdigest())
         hashes += file_md5_sums
-        fourdnest_multipart_md5 = hashlib.md5("".join(hashes)).digest()
+        fourdnest_multipart_md5 = hashlib.md5("".join(hashes)).hexdigest()
         fourdnest_multipart_md5_b64 = base64.b64encode(fourdnest_multipart_md5)
     #m = hashlib.md5()
     #m.update(raw_post_data)
@@ -96,7 +96,7 @@ def validate_4dnest_authorization(request, file_md5_sums):
                          REQUEST_URI])
     key = 'secret'
     hash = hmac.new(key, message, hashlib.sha1)
-    encoded = base64.b64encode(hash.digest())
+    encoded = base64.b64encode(hash.hexdigest())
     if 'HTTP_AUTHORIZATION' in request.META:
         #username, signature = request.META['HTTP_AUTHORIZATION'].split(':')
 
@@ -129,7 +129,11 @@ def api_upload(request):
             print "Field name: '%s', saved to %s" % (filefield, tmpname)
         # FIXME: this doesn't work correctly, because accessing request.FILES empties raw_post_data
         print "AUTHORIZATION SUCCESSFUL:", validate_4dnest_authorization(request, file_md5_sums)
-        response = HttpResponse(status=201)
+        if validate_4dnest_authorization(request, file_md5_sums) is True:
+            response_status = 201 # Created
+        else:
+            response_status = 401 # Unauthorized
+        response = HttpResponse(status=response_status)
         response['Location'] = '/fourdnest/api/v1/egg/%s/' % 'some_random_uid_would_be_here'
         return response
     else:

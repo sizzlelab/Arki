@@ -107,7 +107,7 @@ class HttpPostMultipart:
             lines.append('Content-Disposition: form-data; name="%s"' % key)
             lines.append('')
             lines.append(value)
-            hashes.append(hashlib.md5(value).digest())
+            hashes.append(hashlib.md5(value).hexdigest())
             handler.write(lines)
         for (key, filename, value) in files:
             lines.append('--' + boundary)
@@ -144,11 +144,10 @@ class HttpPostMultipart:
             # Add extra newline to the end of file field
             handler.write(CRLF)
             #digest_maker.update(CRLF)
-
-        hashes.append(digest_maker.digest())
-        #print hashes
+        hashes.append(digest_maker.hexdigest())
+        print hashes
         #print ''.join(hashes)
-        fourdnest_multipart_md5 = hashlib.md5(''.join(hashes)).digest()
+        fourdnest_multipart_md5 = hashlib.md5(''.join(hashes)).hexdigest()
         lines.append('--' + boundary + '--')
         handler.write(lines)
         content_type = 'multipart/form-data; boundary=%s' % boundary
@@ -165,7 +164,7 @@ class HttpPostMultipart:
                              request_uri])
         #print message
         hash = hmac.new(self.secret, message, hashlib.sha1)
-        encoded = base64.b64encode(hash.digest())
+        encoded = base64.b64encode(hash.hexdigest())
         hmac_header = '%s:%s' % (self.username, encoded)
         headers.update({
             'Authorization': hmac_header,
@@ -202,7 +201,7 @@ class HttpPostMultipart:
             'Content-Length': content_length,
             'Date': tstamp,
         })
-        #self.add_authorization_header(headers, content_type, selector, md5_digest_maker.digest(), fourdnest_multipart_md5)
+        #self.add_authorization_header(headers, content_type, selector, md5_digest_maker.hexdigest(), fourdnest_multipart_md5)
         # Use fourdnest_multipart_md5, content_md5 is empty string
         self.add_authorization_header(headers, content_type, selector, '', fourdnest_multipart_md5)
         print "REQUEST:"
@@ -225,6 +224,8 @@ class HttpPostMultipart:
 # TODO: add command line options: debug, verbose
 if __name__ == '__main__':
     host = '127.0.0.1:8000'
+
+    #host = 'test42.4dnest.org'
     selector = '/fourdnest/api/v1/egg/upload/'
     #headers = {'Cookie': 'sessionid=7c77f05283b41d74850dee610ddca993'}
     headers = {}
