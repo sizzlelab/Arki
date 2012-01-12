@@ -1,0 +1,56 @@
+<!DOCTYPE HTML>{% load i18n %}
+<html>
+<head>
+<title>{% block title %}Aalto University of Art and Design/Arki{% endblock %}</title>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<style type="text/css">
+html { height:95% }
+body { height:95%; margin:0px; padding:0px; font-family:sans-serif; }
+#header {
+ width:auto;
+ background-color:#eee;
+ padding:5px;
+}
+#loginbox {
+ position: absolute;
+ top:5px;
+ right:5px;
+}
+header a {
+ color:#00f;
+ text-decoration:none;
+}
+header a:hover {
+ color:#000;
+ text-decoration:underline;
+}
+</style>
+{% block extrahead %}{% endblock %}
+</head>
+<body>
+<header>
+{% block header %}{% endblock %}
+</header>
+{% block content %}
+<div id="content">
+{% for egg in latest_objects %}
+ <div class="egg" style="clear:both">
+ {% if egg.content %}
+  <div class="egg_image" style="float:left">
+  <img src="{% url instance egg.content.uid 200 200 "jpg" %}"/>
+  </div>
+ {% endif %}
+ <div class="egg_metadata">
+ {{ egg.title }}<br/>
+ {{ egg.caption }}<br/>
+ {{ egg.author }}<br/>
+ {{ egg.created|date:"d.m.Y H:i:s" }}
+ </div>
+ </div>
+{% endfor  %}
+</div>
+{% endblock %}
+<footer>{% block footer %}{% endblock %}</footer>
+</body>
+</html>
