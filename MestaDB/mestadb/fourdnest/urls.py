@@ -7,15 +7,10 @@ import views
 
 urlpatterns = patterns('',
     url(r'^$', views.index, name='fourdnest_index'),
-    #url(r'^search/$', views.search, name='search'),
-    #url(r'^upload/$', views.upload, name='upload'),
-    #url(r'^html5upload/$', views.html5upload, name='html5upload'),
-    #url(r'^edit/(?P<uid>[\w]+)/$', views.edit, name='edit'),
-    #url(r'^instance/(?P<uid>[\w]+)-(?P<width>\d+)x(?P<height>\d+)\.(?P<ext>\w+)$', views.instance, name='instance'),
-    #(r'^original/(\w+)$', views.original),
-    #(r'^metadata/(\w+)$', views.metadata),
+    url(r'^upload/$', views.simple_upload, name='fourdnest_simple_upload'),
+    url(r'^postcomment/$', views.post_comment, name='fourdnest_post_comment'),
+    url(r'^help/$', views.mobile_help, name='fourdnest_mobile_help'),
 )
-
 
 from fourdnest.apitastypie import UserResource
 from fourdnest.apitastypie import TagResource
@@ -30,4 +25,5 @@ v1_api.register(UserResource())
 urlpatterns += patterns('',
     url(r'^api/v1/egg/upload/?$', views.api_upload, name='fourdnest_api_upload'),
     (r'^api/', include(v1_api.urls)),
+    (r'^feeds/georss/?$', views.georss),
 )

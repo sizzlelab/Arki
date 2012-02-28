@@ -14,7 +14,7 @@ admin.site.register(Content, ContentAdmin)
 """
 
 from django.contrib import admin
-from models import Egg
+from models import Egg, Tag
 
 class EggAdmin(admin.ModelAdmin):
     search_fields = ('title', 'caption', 'author')
@@ -22,3 +22,11 @@ class EggAdmin(admin.ModelAdmin):
     ordering = ('title',)
 
 admin.site.register(Egg, EggAdmin)
+
+class TagAdmin(admin.ModelAdmin):
+    pass
+    #search_fields = ('title', 'caption', 'author')
+    #list_display = ('title', 'caption', 'author', 'created', 'updated')
+    #ordering = ('title',)
+
+admin.site.register(Tag, TagAdmin)

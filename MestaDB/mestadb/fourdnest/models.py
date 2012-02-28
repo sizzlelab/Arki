@@ -37,9 +37,13 @@ class Authkey(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     used = models.DateTimeField(auto_now=True)
 
+
 class Tag(models.Model):
     uid = models.CharField(max_length=40, unique=True, db_index=True, default=get_uid, editable=False)
     name = models.CharField(max_length=100)
+
+    def __unicode__(self):
+        return self.name
 
 
 class Egg(models.Model):
@@ -50,10 +54,10 @@ class Egg(models.Model):
                                         ("PUBLIC", "Public")))
     user = models.ForeignKey(User, blank=True, null=True, editable=True)
     tags = models.ManyToManyField(Tag, blank=True, editable=True)
-    content = models.ForeignKey(Content, blank=True, null=True, editable=True)
-    title = models.CharField(max_length=200, blank=True, null=True)
-    caption = models.TextField(blank=True, null=True)
-    author = models.CharField(max_length=200, blank=True, null=True)
+    content = models.ForeignKey(Content, null=True, editable=True)
+    title = models.CharField(max_length=200, blank=True)
+    caption = models.TextField(blank=True)
+    author = models.CharField(max_length=200, blank=True)
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -62,6 +66,10 @@ class Egg(models.Model):
 
     def latlon(self):
         return self.point.coords if self.point else None
+
+    def __unicode__(self):
+        return u'%s: %s' % (self.author, self.caption)
+
 
     #def egg2content(self):
     #    if self.content is not None:
@@ -82,3 +90,17 @@ class Egg(models.Model):
     #def save(self, *args, **kwargs):
     #    self.egg2content()
     #    super(Egg, self).save(*args, **kwargs) # Call the "real" save() method.
+
+class Comment(models.Model):
+    uid = models.CharField(max_length=40, unique=True, db_index=True, default=get_uid, editable=False)
+    user = models.ForeignKey(User, null=True, editable=False)
+    egg = models.ForeignKey(Egg, null=False, editable=False, related_name='comments')
+    title = models.CharField(max_length=200, blank=True)
+    text = models.TextField(blank=False)
+    author = models.CharField(max_length=200, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __unicode__(self):
+        return u'%s: %s' % (self.author, self.text)
+

@@ -4,6 +4,7 @@ from django.core.urlresolvers import reverse
 from django.conf.urls.defaults import url
 from django.contrib.gis.geos import Point
 
+from django.http import Http404
 from django.core.paginator import Paginator, InvalidPage
 
 from tastypie.resources import ModelResource, ALL, ALL_WITH_RELATIONS
@@ -17,6 +18,10 @@ from tastypie.utils import trailing_slash
 
 from content.models import Content
 from fourdnest.models import Egg, Tag
+
+import os.path
+
+DEFAULT_EGG_OBJECTS = 50
 
 class DjangoAuthentication(Authentication):
     """Authenticate based upon Django session."""
@@ -127,7 +132,8 @@ class EggResource(ModelResource):
     user = fields.ForeignKey(UserResource, 'user',  null=True)
 
     class Meta:
-        queryset = Egg.objects.all()
+        # Return only Eggs, which are successfully authorized and has user
+        queryset = Egg.objects.filter(user__isnull=False).order_by('-created')
         resource_name = 'egg'
         fields = ['uid', 'title', 'caption', 'author', 'created']
         filtering = {
@@ -144,12 +150,35 @@ class EggResource(ModelResource):
         try:
             lat = bundle.data['lat']
             lon = bundle.data['lon']
-            bundle.obj.geography = Point(lon, lat)
+            bundle.obj.point = Point(lon, lat)
         except KeyError, err:
             pass
         except Exception, err:
             print str(err)
             raise
+        tags = bundle.data.get('tags', [])
+        if tags and isinstance(tags, list):
+            tags = [x.lower() for x in tags]
+            tag_str = ','.join(tags)
+            bundle.obj.tags.clear()
+            for tagname in tags:
+                try:
+                    tag = Tag.objects.get(name=tagname)
+                    print "Tag old:",
+                except Tag.DoesNotExist:
+                    tag = Tag(name=tagname)
+                    tag.save()
+                    print "Tag new:",
+                print tagname, tag
+                bundle.obj.tags.add(tag)
+            if bundle.obj.content:
+                bundle.obj.content.keywords = tag_str
+                bundle.obj.content.save()
+                # Copy coordinates from content (parsed while saving it if they existed)
+                # FIXME: check that obj hasn't already valid point
+                #if bundle.obj.content.point:
+                #    bundle.obj.point = bundle.obj.content.point
+            #print "ON LISTA"
         if bundle.data.get('uid'):
             bundle.obj.uid = bundle.data.get('uid')
         # The owner of Entity is get from request's authenticated user
@@ -164,6 +193,12 @@ class EggResource(ModelResource):
             bundle.data['lon'] = bundle.obj.point.coords[0]
         if bundle.obj.content and bundle.obj.content.thumbnail():
             bundle.data['thumbnail_uri'] = "/content/instance/%s-100x100.jpg" % bundle.obj.content.uid
+        if bundle.obj.content:
+            root, ext = os.path.splitext(bundle.obj.content.originalfilename)
+            #FIXME: check that ext exists
+            bundle.data['content_uri'] = "/content/original/%s%s" % (bundle.obj.content.uid, ext)
+        bundle.data['tags'] = [x.name for x in bundle.obj.tags.all()]
+
         #print dir(bundle.data),
         #print dir(bundle.obj)
         #if hasattr(bundle.obj, 'distance'):
@@ -196,10 +231,10 @@ class EggResource(ModelResource):
         self.throttle_check(request)
 
         # Do the query.
-        objects = Egg.objects.all() # First get default part
+        objects = Egg.objects.all().order_by('-created') # First get default part
 
         #sqs = SearchQuerySet().models(Note).load_all().auto_query(request.GET.get('q', ''))
-        paginator = Paginator(objects, 20)
+        paginator = Paginator(objects, DEFAULT_EGG_OBJECTS)
         # TODO: paginator from parameters or default 50
         try:
             page = paginator.page(int(request.GET.get('page', 1)))

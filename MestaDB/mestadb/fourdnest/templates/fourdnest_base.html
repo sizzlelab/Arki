@@ -25,29 +25,218 @@ header a:hover {
  color:#000;
  text-decoration:underline;
 }
+
+div.egg {
+  clear:both;
+  -moz-border-radius: 5px;
+  border-radius: 5px;
+  border: 2px solid  #ccccff;
+  background-color: #eeeeff;
+  margin:10px;
+  padding:2px;
+  overflow: hidden;
+}
+
+div.egg_image {
+  float:left;
+  width:260px;
+}
+
+div.egg_metadata {
+  float:left;
+  width:400px;
+  /* height:160px; */
+}
+
+div.egg_comments {
+  float:left;
+  width:400px;
+  /*height:160px;*/
+}
+
+span.author {
+  color:#600;
+  font-weight:bold;
+}
+span.timestamp {
+  color:#333;
+}
+span.timecince{
+  color:#006;
+  font-weight:bold;
+}
+
+span.caption {
+  color:#000;
+}
+
+span.tags {
+  color:#666;
+}
+
+div.tech_data {
+  color:#666;
+  font-size: 80%;
+  margin-top:10px;
+}
+
+span.comment_timecince {
+  color:#666;
+}
+
+
 </style>
 {% block extrahead %}{% endblock %}
+<script type="text/javascript" src="/static/js/jquery/jquery-1.6.2.min.js"></script>
+<script type="text/javascript" src="/static/js/jquery/plugins/jquery.html5_upload.js"></script>
+
 </head>
 <body>
+
 <header>
 {% block header %}{% endblock %}
 </header>
 {% block content %}
 <div id="content">
+<form action="" method="post">
+{{ messageform }}
+<input type="submit" value="{% trans 'Send' %}">{% csrf_token %}
+</form>
+{{ latest_object_form }}
+{% if request.user.is_authenticated %}
+<hr>
+<input type="file" id="upload_field" style="width:200px;height:100px;border: 2px #ccc solid"/>
+<div id="progress_report" style="border: 2px #ccc solid">
+<div id="progress_report_name"></div>
+<div id="progress_report_status" style="font-style: italic;"></div>
+<div id="progress_report_bar_container" style="width: 90%; height: 5px;">
+    <div id="progress_report_bar" style="background-color: blue; width: 0; height: 100%;"></div>
+</div>
+</div>
+
+<script type="text/javascript">
+$(function() {
+    $("#upload_field").html5_upload({
+        url: "{% url fourdnest_simple_upload %}",
+        //sendBoundary: window.FormData || $.browser.mozilla,
+        sendBoundary: true,
+        fieldName: 'file',
+        onStart: function(event, total) {
+            // return true;
+            return confirm("You are trying to upload " + total + " files. Are you sure?");
+        },
+        onProgress: function(event, progress, name, number, total) {
+            console.log(progress, number);
+        },
+        setName: function(text) {
+            $("#progress_report_name").text(text);
+        },
+        setStatus: function(text) {
+            $("#progress_report_status").text(text);
+        },
+        setProgress: function(val) {
+            $("#progress_report_bar").css('width', Math.ceil(val*100)+"%");
+        },
+        onFinishOne: function(event, response, name, number, total) {
+            //alert(response);
+        },
+        onFinish: function(event,  total) {
+            window.location.reload();
+        },
+        onError: function(event, name, error) {
+            alert('error while uploading file ' + name);
+        }
+    });
+});
+</script>
+
+<hr>
+{% endif  %}
+
 {% for egg in latest_objects %}
- <div class="egg" style="clear:both">
+
+ <div class="egg" style="">
+
  {% if egg.content %}
   <div class="egg_image" style="float:left">
-  <img src="{% url instance egg.content.uid 200 200 "jpg" %}"/>
-  </div>
+      <a href="/content/original/{{ egg.content.uid }}{{ egg.fileext }}">
+ {% if egg.content.thumbnail %}
+  <img src="{% url instance egg.content.uid 240 160 "jpg" %}"/>
+ {% else %}
+  <img src="{% url instance egg.content.uid 240 160 "jpg" %}"/>
+  <!--
+ <img src="/static/images/audio_icon.jpg">
+ -->
  {% endif %}
+ </a>
+  </div>
+ {% else %}
+  <div class="egg_image" style="float:left">{% trans "No preview" %}</div>
+ {% endif %}
+
+
  <div class="egg_metadata">
- {{ egg.title }}<br/>
- {{ egg.caption }}<br/>
- {{ egg.author }}<br/>
- {{ egg.created|date:"d.m.Y H:i:s" }}
+{% if request.user.is_superuser  %}<a href="/admin/fourdnest/egg/{{ egg.id }}/delete/" target="_blank">Nuke this in admin</a><br/>{% endif %}
+
+<span class="author">{{ egg.author }}</span>
+<span class="timesince">{{ egg.created|timesince }} {% trans "ago" %}</span>
+<span class="timestamp">({{ egg.created|date:"d.m.Y H:i:s" }})</span><br/>
+<span class="caption">{{ egg.caption }}</span>
+{% if egg.tags.all %}
+<span class="tags">({{ egg.tags.all|join:", " }})</span><br/>
+{% endif %}
+<div class="tech_data">
+ Django User: {{ egg.user }}<br/>
+ {% if egg.content %}
+ Content type: {{ egg.content.mimetype }}<br/>
+ Filename: {{ egg.content.originalfilename }} ({{ egg.content.filesize|filesizeformat }})<br/>
+ {% else %}
+ {% trans "Content type: plain text (no file attachment)" %}<br/>
+ {% endif %}
+ {% if egg.point %}
+     Coords: {{ egg.point.coords.1 }}, {{ egg.point.coords.0 }}<br>
+ {% endif %}
+ 
+</div>
+<!--
+ {% if egg.title %} Title: {{ egg.title }}<br/> {% endif %}
+ Caption: {{ egg.caption }}<br/>
+ Author: {{ egg.author }}<br/>
+ Django User: {{ egg.user }}<br/>
+ Egg Tags: {{ egg.tags.all|join:", " }}  <br/>
+ Created: {{ egg.created|date:"d.m.Y H:i:s" }}<br/>
+ {% if egg.content %}
+ Content type: {{ egg.content.mimetype }}<br/>
+ Filename: {{ egg.content.originalfilename }} ({{ egg.content.filesize|filesizeformat }})<br/>
+ {% else %}
+ Content type: plain text (no file attachment)<br/>
+ {% endif %}
+ {% if egg.point %}
+ <a href="http://pafciu17.dev.openstreetmap.org/?module=map&amp;center={{ egg.point.coords.0 }},{{ egg.point.coords.1 }}&amp;zoom=15&amp;width=400&amp;height=400&amp;points={{ egg.point.coords.0 }},{{ egg.point.coords.1 }},pointImagePattern:greenE">
+     Coords: {{ egg.point.coords.1 }}, {{ egg.point.coords.0 }}</a><br>
+ {% endif %}
+--></br>
  </div>
+ 
+  <div class="egg_comments">
+<form method="post" action="{% url fourdnest_post_comment %}">{% csrf_token %}
+<label for="id_comment">{% trans "Comment" %}:</label></th>
+<input type="text" name="comment" id="id_comment" />
+     <input type="hidden" name="egg_uid" id="id_egg_uid" value="{{ egg.uid }}"/>
+     <input type="submit" name="egg_uid_{{ egg.uid }}" value="{% trans "Send" %}" />
+</form>
+
+<ul>
+{% for c in egg.comments.all %}
+<li>{{ c.text }} <span class="comment_timecince">({{ c.created|timesince }}  {% trans "ago" %})</span></li>
+    {% endfor %}
+</ul>
+
  </div>
+
+
+ </div> <!-- div.egg -->
+
 {% endfor  %}
 </div>
 {% endblock %}
