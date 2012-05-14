@@ -20,9 +20,11 @@ from django.db.models import Q
 from django.contrib.gis.geos import Point
 
 import os
+import os.path
 import StringIO
 import tempfile
 import PIL
+from PIL import Image, ImageDraw, ImageFont
 import json
 
 from filehandler import handle_uploaded_file
@@ -94,12 +96,18 @@ def upload(request):
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
-@login_required
+#@login_required
 def api_upload(request):
     """
     Renders the upload form page.
     """
     if request.method == 'POST': # If the form has been submitted...
+        #for header in request.META.keys():
+        #    if header.startswith('HTTP'):
+        #        print header, request.META[header]
+        #print request.raw_post_data[:1000]
+        if request.user.is_authenticated() is False:
+            return HttpResponse(status=401)
         form = UploadForm(request.POST, request.FILES) # A form bound to the POST data
         if form.is_valid(): # All validation rules pass
             for filefield, tmpname in handle_uploaded_file(request):
@@ -110,7 +118,7 @@ def api_upload(request):
                 try:
                     kwargs['point'] = Point(float(request.POST.get('lon')), float(request.POST.get('lat')))
                 except:
-                    raise
+                    #raise
                     pass
                 print kwargs
                 c = Content(**kwargs)
@@ -120,12 +128,15 @@ def api_upload(request):
                 c.get_type_instance() # Create thumbnail if it is supported
                 c.save()
                 break # We save only the first file
-            response = HttpResponse()
-            response.status_code = 201
+            response = HttpResponse(status=201)
+            #response.status_code = 201
             # FIXME: use reverse()
             response['Location'] = '/content/api/v1/content/%s/' % c.uid
             return response
             #return HttpResponseRedirect(reverse('edit', args=[c.uid]))
+        else:
+            response = HttpResponse(status=204)
+            return response
     else:
         raise Http404
 
@@ -216,39 +227,96 @@ def search(request):
                                })
 
 
+def _get_placeholder_instance(c, text=None):
+    imsize = (160, 80)
+    immode = 'RGBA'
+    imfont = 'Arial.ttf'
+    imfontsize = 22
+    imtext = c.mimetype if text is None else text
+    imtext = imtext.replace('/', ' ').split(' ')
+    if len(imtext) == 1:
+        imtext.append(u'')
+    im = Image.new(immode, imsize, '#eeeeee')
+    draw = ImageDraw.Draw(im)
+    try:
+        font = ImageFont.truetype(imfont, imfontsize, encoding='unic')
+    except IOError:
+        font = ImageFont.load_default()
+        raise
+    
+    draw.text((5,10), imtext[0], font=font, fill='#333333')
+    draw.text((5,35), imtext[1], font=font, fill='#333333')
+    #corners = [(0,0), 
+    #           (imsize[0], 0), 
+    #           (imsize[0], imsize[1]),
+    #           (0, imsize[1]),
+    #           (0,0)
+    #           ]
+    #for i in range(0,len(corners)-1):
+    #    draw.line((corners[i], corners[i+1]), width=3, fill='#000000')
+    del draw
+    #im.save("/tmp/text.png", "PNG")
+    return im 
 
 #@cache_page(60 * 60) # FIXME: this value should in settings.py
-def instance(request, uid, width, height, ext):
+#@cache_page(60 * 60)
+def instance(request, uid, width, height, action, ext):
     """
     Return scaled JPEG instance of the Content, which type is image.
     New size is determined from URL.
+    action can be '-crop'
     """
     # w, h = width, height
     response = HttpResponse()
     try:
         c = Content.objects.get(uid=uid)
-    except models.Content.DoesNotExist:
+    except Content.DoesNotExist:
         raise Http404
     if c.mimetype:
         contenttype = c.mimetype.split("/")[0]
     else: # FIXME: no mimetype, content may be broken? Check where contenttype is set and make sure there is some meaningful value always! Perhaps required field?
         contenttype = None
     # Return image if type is image or video
-    if contenttype in ['image', 'video']:
-        # FIXME: check first is there a thumbnail
+    #if contenttype in ['image', 'video']:
+    if True or contenttype in ['image', 'video']:
+        thumbnail = None
         if contenttype == 'image':
-            # print c.image.thumbnail, "jeejee"
-            im = PIL.Image.open(c.image.thumbnail.path)
-        else:
-            im = PIL.Image.open(c.video.thumbnail.path)
+            thumbnail = c.image.thumbnail
+        elif contenttype == 'video':
+            thumbnail = c.video.thumbnail
+        try:
+            im = PIL.Image.open(thumbnail.path)
+        except AttributeError, err:
+            print "No thumbnail in non-video/image Content ", c.uid, str(err)
+            im = _get_placeholder_instance(c)
+        except IOError, err:
+            print "IOERROR in Content ", c.uid, str(err)
+            raise
+            return HttpResponse('ERROR: This Content has no thumbnail.', status=404)
+        except ValueError, err:
+            print "ValueERROR in Content, missing thumbnail:", c.uid, str(err)
+            im = _get_placeholder_instance(c, text=u'Missing thumbnail')
+            #return HttpResponse('ERROR: This Content has no thumbnail.', status=404)
         size = int(width), int(height)
-        im.thumbnail(size, PIL.Image.ANTIALIAS)
-        # TODO: use imagemagick and convert
-        #tmp = tempfile.NamedTemporaryFile()
+        if action == '-crop':
+            shorter_side = min(im.size)
+            side_divider = 1.0 * shorter_side / min(size)
+            crop_size = int(max(im.size) / side_divider) + 1
+            #print shorter_side, side_divider, im.size, crop_size
+            size = (crop_size, crop_size)
+            im.thumbnail(size, PIL.Image.ANTIALIAS)
+            margin = (max(im.size) - min(im.size)) / 2
+            crop_size = min(im.size)
+            if im.size[0] > im.size[1]: #horizontal
+                crop = [0 + margin, 0, margin + crop_size, crop_size]
+            else:
+                crop = [0, 0 + margin, crop_size, margin + crop_size]
+            im = im.crop(crop)
+        else:
+            im.thumbnail(size, PIL.Image.ANTIALIAS)
+        # TODO: use imagemagick and convert for better quality
         tmp = StringIO.StringIO()
         im.save(tmp, "jpeg", quality=90)
-        #tmp.seek(0)
-        #data = tmp.read()
         data = tmp.getvalue()
         tmp.close()
         response = HttpResponse()
@@ -268,15 +336,16 @@ def instance(request, uid, width, height, ext):
         return response
 
 #@login_required
+@cache_page(60 * 60)
 def original(request, uid):
     """
     Return original file.
     """
     # FIXME: this doesn't authenticate!
-    response = HttpResponse()
+    uid = uid.split('.')[0] # remove possible extension
     try:
-        c = models.Content.objects.get(uid=uid)
-    except models.Content.DoesNotExist:
+        c = Content.objects.get(uid=uid)
+    except Content.DoesNotExist:
         raise Http404
     # Return image if type is image or video
     tmp = open(c.file.path, "rb")
@@ -296,8 +365,8 @@ def metadata(request, uid):
     """
     response = HttpResponse()
     try:
-        c = models.Content.objects.get(uid=uid)
-    except models.Content.DoesNotExist:
+        c = Content.objects.get(uid=uid)
+    except Content.DoesNotExist:
         raise Http404
     data = []
     data.append(u"Author: %s" % c.author)

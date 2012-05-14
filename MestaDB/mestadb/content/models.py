@@ -5,7 +5,7 @@ If file type is not supported, it is saved "as is".
 """
 
 import os
-import re
+#import re
 import time
 import hashlib
 import mimetypes
@@ -27,6 +27,8 @@ from content.filetools import get_videoinfo, get_imageinfo, get_mimetype, do_vid
 
 content_storage = FileSystemStorage(location=settings.APP_DATA_DIRS['CONTENT'])
 preview_storage = FileSystemStorage(location=settings.APP_VAR_DIRS['PREVIEW'])
+# TODO: change to APP_VAR_DIRS or something
+mail_storage = FileSystemStorage(location=settings.MAIL_CONTENT_DIR)
 
 # define this in local_settings, if you want to change this
 try:
@@ -62,12 +64,20 @@ def get_uid(length=12):
     alphanum = string.letters + string.digits
     return ''.join([alphanum[random.randint(0,len(alphanum)-1)] for i in xrange(length)])
 
+def get_token(charset=string.hexdigits, length=16):
+    """
+    Generate and return a random string which can be considered unique.
+    Default length is 12 characters from set [a-zA-Z0-9].
+    """
+    return ''.join([charset[random.randint(0,len(charset)-1)] for i in xrange(length)])
+
+
 class Content(models.Model):
     """
     Common fields for all content files.
     """
     # Static fields (for internal use)
-    id = models.AutoField('ID', primary_key=True)
+    #id = models.AutoField('ID', primary_key=True)
     status = models.CharField(max_length=40, default="UNPROCESSED", editable=False)
     privacy = models.CharField(max_length=40, default="PRIVATE",
                                choices=(("PRIVATE", "Private"),
@@ -91,7 +101,7 @@ class Content(models.Model):
     "MD5 hash of original file in hex-format"
     sha1 = models.CharField(max_length=40, null=True, editable=False)
     "SHA1 hash of original file in hex-format"
-    added = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(auto_now_add=True)
     "Timestamp when current Content was added to the system."
     updated = models.DateTimeField(auto_now=True)
     "Timestamp of last update of current Content."
@@ -320,7 +330,10 @@ class Video(models.Model):
             # Create temporary file for thumbnail
             tmp_file, tmp_name = tempfile.mkstemp()
             if do_video_thumbnail(self.content.file.path, tmp_name):
-                filename = u"%s.jpg" % (self.content.uid)
+                postfix = "%s-%s-%sx%s" % (THUMBNAIL_PARAMETERS)
+                #filename = u"%09d-%s%s" % (self.id, self.uid, ext.lower())
+                filename = u"%09d-%s-%s.jpg" % (self.content.id, self.content.uid, postfix)
+                #filename = u"%s.jpg" % (self.content.uid)
                 f = open(tmp_name, "rb")
                 self.thumbnail.save(filename, ContentFile(f.read()))
                 f.close()
@@ -341,7 +354,70 @@ class Uploadinfo(models.Model):
     All possible information of the client who uploaded the Content file.
     """
     content = models.OneToOneField(Content, primary_key=True, editable=False)
-    sessionid = models.CharField(max_length=200, blank=True, null=True, editable=False)
+    sessionid = models.CharField(max_length=200, blank=True, editable=False)
     ip = models.IPAddressField(blank=True, null=True, editable=False)
-    useragent = models.CharField(max_length=500, blank=True, null=True, editable=False)
-    info = models.TextField(blank=True, null=True, editable=True)
+    useragent = models.CharField(max_length=500, blank=True, editable=False)
+    info = models.TextField(blank=True, editable=True)
+
+    def set_request_data(self, request):
+        self.sessionid = request.session.session_key if request.session.session_key else ''
+        self.ip = request.META.get('REMOTE_ADDR')
+        #print self.useragent, type(self.useragent)
+        self.useragent = request.META.get('HTTP_USER_AGENT', '')[:500]
+
+
+class Authtoken(models.Model):
+    """
+    """
+    user = models.ForeignKey(User)
+    name = models.CharField(max_length=64, blank=True, editable=True)
+    # TODO: change default from get_token -> something more generic
+    uid = models.CharField(max_length=40, unique=True, db_index=True, default=get_token, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+    opens = models.DateTimeField(auto_now=True)
+    expires = models.DateTimeField(blank=True, null=True)
+
+class Mail(models.Model):
+    """
+    Retrieved Mail files
+    """
+    status = models.CharField(max_length=40, default="UNPROCESSED", editable=True,
+                              choices=(("UNPROCESSED", "UNPROCESSED"),
+                                        ("PROCESSED", "PROCESSED"),
+                                        ("DUPLICATE", "DUPLICATE"),
+                                        ("FAILED", "FAILED")))
+    filesize = models.IntegerField(null=True, editable=False)
+    file = models.FileField(storage=mail_storage, upload_to=upload_split_by_1000, editable=False)
+    md5 = models.CharField(max_length=32, db_index=True, editable=False)
+    sha1 = models.CharField(max_length=40, db_index=True, editable=False)
+    created = models.DateTimeField(auto_now_add=True)
+    processed = models.DateTimeField(null=True)
+
+    def set_file(self, filecontent, host):
+        """
+        Set Content.file and all it's related fields.
+        filecontent may be
+        - open file handle (opened in "rb"-mode)
+        - existing file name (full path)
+        - raw file data
+        NOTE: this reads all file content into memory
+        """
+        if isinstance(filecontent, file):
+            filecontent.seek(0)
+            filedata = filecontent.read()
+        elif len(filecontent) < 1000 and os.path.isfile(filecontent):
+            f = open(filecontent, "rb")
+            filedata = f.read()
+            f.close()
+        else:
+            filedata = filecontent
+        self.md5 = hashlib.md5(filedata).hexdigest()
+        self.sha1 = hashlib.sha1(filedata).hexdigest()
+        self.save() # Must save here to get self.id
+        #root, ext = os.path.splitext(originalfilename)
+        filename = u"%09d-%s" % (self.id, host)
+        self.file.save(filename, ContentFile(filedata))
+        self.filesize = self.file.size
+        if Mail.objects.filter(md5=self.md5).filter(sha1=self.sha1).count() > 1:
+            self.status = 'DUPLICATE'
+        self.save()

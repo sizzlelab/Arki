@@ -23,7 +23,7 @@ from models import Content
 
 class ContentAdmin(admin.ModelAdmin):
     search_fields = ('title', 'caption', 'mimetype', 'caption')
-    list_display = ('title',  'caption', 'mimetype', 'filesize', 'added', 'updated')
+    list_display = ('title',  'caption', 'mimetype', 'filesize', 'created', 'updated')
     ordering = ('title',)
 
 admin.site.register(Content, ContentAdmin)

@@ -3,14 +3,14 @@ from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
 from django.conf.urls.defaults import url
 from django.contrib.gis.geos import Point
-
+from django.http import Http404
 from django.core.paginator import Paginator, InvalidPage
 
 from tastypie.resources import ModelResource, ALL, ALL_WITH_RELATIONS
 from tastypie import fields
 from tastypie.bundle import Bundle
 from tastypie.authentication import Authentication
-from tastypie.authentication import BasicAuthentication
+#from tastypie.authentication import BasicAuthentication
 from tastypie.authorization import Authorization
 from tastypie.authorization import DjangoAuthorization
 from tastypie.utils import trailing_slash
@@ -60,7 +60,7 @@ class ContentResource(ModelResource):
     class Meta:
         queryset = Content.objects.all()
         resource_name = 'content'
-        fields = ['uid', 'title', 'caption', 'author', 'added']
+        fields = ['uid', 'title', 'caption', 'author', 'created']
         filtering = {
             'user': ALL_WITH_RELATIONS,
             #'created': ['exact', 'lt', 'lte', 'gte', 'gt'],

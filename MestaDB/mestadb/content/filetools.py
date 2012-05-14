@@ -3,7 +3,7 @@
 import sys
 if __name__=='__main__':
     sys.path.append("..")
-import os
+#import os
 import re
 import time
 import subprocess
@@ -24,8 +24,8 @@ def guess_encoding(str):
     http://stackoverflow.com/questions/4198804/how-to-reliably-guess-the-encoding-between-macroman-cp1252-latin1-utf-8-and-a
     """
     try:
-         unicode(str, 'utf8')
-         return "utf8"
+        unicode(str, 'utf8')
+        return "utf8"
     except UnicodeDecodeError:
         if re.compile(r'[\x00–\x1f\x7f-\x9f]').findall(str):
             return "mac-roman"
@@ -242,8 +242,9 @@ def do_video_thumbnail(src, target):
     ffmpeg -ss 3 -i test_content/05012009044.mp4 -vframes 1 -f mjpeg -s 320x240 test-3.jpg
     """
     try:
+        # FIXME: this fails to create thumbnail if the seconds value after -ss exeeds clip length
         subprocess.check_call([
-            'ffmpeg', '-y', '-ss', '5', '-i', src,
+            'ffmpeg', '-y', '-ss', '1', '-i', src,
             '-vframes', '1', '-f', 'mjpeg', target
             ])
         return True
@@ -268,29 +269,29 @@ def image_magick_resize(src, target, width, height):
     pass
 
 def create_thumbnail(filepath, t):
-        try:
-            im = PIL.Image.open(filepath)
-        except IOError: # Image file is corrupted
-            print "ERROR in image file:", self.content.id, self.content.file
-            return False
-        if im.mode not in ('L', 'RGB'):
-            im = im.convert('RGB')
-        size = (t[0], t[1])
-        rotatemap = {
-            90: PIL.Image.ROTATE_270,
-           180: PIL.Image.ROTATE_180,
-           270: PIL.Image.ROTATE_90,
-        }
-        if t[4] != 0:
-            im = im.transpose(rotatemap[t[4]])
-        im.thumbnail(size, PIL.Image.ANTIALIAS)
-        # TODO: use imagemagick and convert
-        # Save resized image to a temporary file
-        # NOTE: the size will be increased if original is smaller than size
-        tmp = tempfile.NamedTemporaryFile() # FIXME: use StringIO
-        im.save(tmp, "jpeg", quality=t[3])
-        tmp.seek(0)
-        return tmp
+    try:
+        im = PIL.Image.open(filepath)
+    except IOError: # Image file is corrupted
+        print "ERROR in image file:", filepath
+        return False
+    if im.mode not in ('L', 'RGB'):
+        im = im.convert('RGB')
+    size = (t[0], t[1])
+    rotatemap = {
+        90: PIL.Image.ROTATE_270,
+       180: PIL.Image.ROTATE_180,
+       270: PIL.Image.ROTATE_90,
+    }
+    if t[4] != 0:
+        im = im.transpose(rotatemap[t[4]])
+    im.thumbnail(size, PIL.Image.ANTIALIAS)
+    # TODO: use imagemagick and convert
+    # Save resized image to a temporary file
+    # NOTE: the size will be increased if original is smaller than size
+    tmp = tempfile.NamedTemporaryFile() # FIXME: use StringIO
+    im.save(tmp, "jpeg", quality=t[3])
+    tmp.seek(0)
+    return tmp
 
 
 if __name__=='__main__':
@@ -299,7 +300,7 @@ if __name__=='__main__':
         del info['exif']['JPEGThumbnail']
     #print info['exif']
     print info['exif'].keys()
-     # w, h, format, quality, rotate
+    # w, h, format, quality, rotate
     THUMBNAIL_PARAMETERS = (200, 200, 'JPEG', 80, 0)
     thumb = create_thumbnail(sys.argv[1], THUMBNAIL_PARAMETERS)
     thumb.close()

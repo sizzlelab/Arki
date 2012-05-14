@@ -11,8 +11,8 @@ urlpatterns = patterns('',
     url(r'^upload/$', views.upload, name='upload'),
     url(r'^html5upload/$', views.html5upload, name='html5upload'),
     url(r'^edit/(?P<uid>[\w]+)/$', views.edit, name='edit'),
-    url(r'^instance/(?P<uid>[\w]+)-(?P<width>\d+)x(?P<height>\d+)\.(?P<ext>\w+)$', views.instance, name='instance'),
-    (r'^original/(\w+)$', views.original),
+    url(r'^instance/(?P<uid>[\w]+)-(?P<width>\d+)x(?P<height>\d+)(?P<action>\-\w+)?\.(?P<ext>\w+)$', views.instance, name='instance'),
+    (r'^original/([\w+\.]+)$', views.original),
     (r'^metadata/(\w+)$', views.metadata),
 )
 

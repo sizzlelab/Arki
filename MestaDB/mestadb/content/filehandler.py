@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from django.utils.translation import ugettext as _
-
-import time
 import tempfile
 
 def handle_uploaded_file(request):
