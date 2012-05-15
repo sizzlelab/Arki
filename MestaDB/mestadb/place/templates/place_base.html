@@ -24,7 +24,8 @@
 }
 </style>
 <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
-<script type="text/javascript" src="{% get_static_prefix %}js/jquery/jquery-1.6.2.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}js/jquery/jquery-1.7.2.js"></script>
+<script type="text/javascript" src="{% get_static_prefix %}js/polygonEdit/polygonEdit_packed.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}place/js/api.js"></script>
 <script type="text/javascript" src="{% get_static_prefix %}place/js/place.js"></script>
 <script type="text/javascript">
@@ -189,6 +190,42 @@ function map_clear_features() {
   }
 }
 
+function addPolygon() {
+    var bounds = map.getBounds();
+    var ne = bounds.getNorthEast();
+    var sw = bounds.getSouthWest();
+    var center = map.getCenter();
+    var latdiff = Math.abs(sw.lat() - ne.lat()) / 5.0;
+    var lngdiff = Math.abs(sw.lng() - ne.lng()) / 5.0;
+    var lat1 = center.lat() - latdiff;
+    var lng1 = center.lng() - lngdiff;
+    var lat2 = center.lat() - latdiff;
+    var lng2 = center.lng() + lngdiff;
+    var lat3 = center.lat() + latdiff;
+    var lng3 = center.lng();
+    var p1 = new google.maps.LatLng(lat1, lng1)
+    var p2 = new google.maps.LatLng(lat2, lng2)
+    var p3 = new google.maps.LatLng(lat3, lng3)
+    mapPolygon = new google.maps.Polygon({
+        map : map,
+        strokeColor   : '#ff0000',
+        strokeOpacity : 0.6,
+        strokeWeight  : 4,
+        path:[
+        p1, p2, p3
+    ]
+    });
+    mapPolygon.runEdit(true);
+}
+function getPolygonCoords() {
+    //alert(mapPolygon.getPath().getArray());
+    document.getElementById("info").innerHTML = '';
+    mapPolygon.getPath().forEach(function (vertex, inex) {
+        document.getElementById("info").innerHTML += '['+vertex.lat()+','+vertex.lng()+']' + ((inex<mapPolygon.getPath().getLength()-1)?',':'');
+    });
+}
+
+
 $(function(){
   // Document is ready
   initialize();
@@ -199,12 +236,14 @@ $(function(){
 
 {% block content %}
 <div id="nukeall_link">
-<a href="javascript:void(0);" onclick="map_clear_features();">Nuke all</a> <span id="feature_cnt">0</span><br/>
+<button onclick="map_clear_features();">Nuke all</a> 0</button><span id="feature_cnt">0</span>
 </div>
 
 
 
-
+   <button onclick="addPolygon()">ADD POLYGON</button>
+   <button onclick="getPolygonCoords()">GET COORDS</button>
+<br/>
 <div id="mousecoord">0,0</div>
 {% comment %}
 <div id="demo2">Filters<br/>
